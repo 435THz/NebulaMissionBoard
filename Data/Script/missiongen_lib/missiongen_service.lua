@@ -1,0 +1,7 @@
+-- PMDO Mission Generation Library, by MistressNebula
+-- Service file
+-- ----------------------------------------------------------------------------------------- --
+-- This file contains the service data used to handle the library's functions.
+-- ----------------------------------------------------------------------------------------- --
+-- This file is already loaded by missiongen_lib.lua. You don't need to require it
+-- explicitly in your project. TODO If this fill is even needed, that is

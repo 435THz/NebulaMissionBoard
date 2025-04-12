@@ -1,0 +1,11 @@
+<Header>
+  <Name>Mission Gen Lib Tutorial</Name>
+  <Author>MistressNebula</Author>
+  <Description>Tutorial mod that shows off the functionalities of the Mission Gen Library.</Description>
+  <Namespace>missiongenlib_tutorial</Namespace>
+  <UUID>3DAA1C36-9B30-4120-A786-86D7C907E4F6</UUID>
+  <Version>1.0</Version>
+  <GameVersion>0.8.8</GameVersion>
+  <ModType>Mod</ModType>
+  <Relationships />
+</Header>
