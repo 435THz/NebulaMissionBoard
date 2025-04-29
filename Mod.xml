@@ -1,8 +1,8 @@
 <Header>
-  <Name>Mission Gen Lib Tutorial</Name>
+  <Name>Nebula's Mission Board Mod</Name>
   <Author>MistressNebula</Author>
-  <Description>Tutorial mod that shows off the functionalities of the Mission Gen Library.</Description>
-  <Namespace>missiongenlib_tutorial</Namespace>
+  <Description>Adds a mission board to the base PMDO game. It contains a job generation library that can be easily included in other mods, with credit.</Description>
+  <Namespace>nebula_mission_board</Namespace>
   <UUID>3DAA1C36-9B30-4120-A786-86D7C907E4F6</UUID>
   <Version>1.0</Version>
   <GameVersion>0.8.8</GameVersion>
