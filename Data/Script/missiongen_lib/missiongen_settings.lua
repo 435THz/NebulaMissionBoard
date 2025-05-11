@@ -1,34 +1,50 @@
 -- PMDO Mission Generation Library, by MistressNebula
 -- Settings file
 -- ----------------------------------------------------------------------------------------- --
--- This file exists as a way to separate the library's configurable data frim its functions.
+-- This file exists as a way to separate the library's configurable data from its functions.
 -- If you are looking for the latter, please refer to missiongen_lib.lua
 -- ----------------------------------------------------------------------------------------- --
 -- This file is already loaded by missiongen_lib.lua. You don't need to require it
 -- explicitly in your project.
 
-local enums = {}
-enums.extra_reward = {}
-enums.extra_reward["none"] = 0
-enums.extra_reward["rank"] = 1
-enums.extra_reward["exp"] = 2
+--- @alias OfficerIDTable {species:string, form:integer|nil, skin:string|nil, gender:integer}
+--- @alias AgentIDTable {species:string, form:integer|nil, skin:string|nil, gender:integer, weight:integer|nil, unique:boolean|nil}
 
 local settings = {
     --- Name of the SV table that will contain all stored data. Use a table to specify a deeper path.
-    --- If absent, these tables will be generated automatically.
-    --- "jobs" would use SV.jobs as its root.
-    --- {"adventure", "jobs"} would use SV.adventure.jobs as its root.
+    --- If not present, the defined path will be generated automatically.
+    --- Examples:
+    --- * "jobs" would use SV.jobs as its root.
+    --- * {"adventure", "jobs"} would use SV.adventure.jobs as its root.
+    ---@type string|string[]
     sv_root_name = "jobs",
-    --- A list of board ids and their respective data
-    --- Format: <board_id> = {display_key = string, size = number, job_types = {{id = string, weight = number}}}
-    --- <board_id>: you can use any string in place of this. It will be used to identify the board in scripts
-    --- display_key: the string key used when displaying the job menu for this board
-    --- size: the amount of quests this board can hold at a time
-    --- job_types: a list of job types and their probability weight. Higher weight means more common.
+    --- A list of board ids and their respective data.
+    --- Format: <board_id> = {display_key = string, size = integer, job_types = {{id = string, weight = integer}}}
+    --- * <board_id>: you can use any string in place of this. It will be used to identify the board in scripts
+    --- * display_key: the string key used when displaying the job menu for this board
+    --- * size: the amount of quests this board can hold at a time
+    --- * job_types: a list of job types and their probability weight. Higher weight means more common.
+    --- * condition: Optional. A function called to determine if library:PopulateBoards() should fill out this board. It receives the library object as an argument and returns a boolean. If it returns true, the board is filled out. If it returns false, it isn't. If this property is missing, this board will always be active.
+    ---@type table<string, {display_key:string, size:integer, condition:fun(library:table):(boolean)|nil, job_types:{id:string, weight:integer}[]}>
     boards = {
         quest_board = {
             display_key = "BOARD_QUEST_TITLE",
             size = 8,
+            condition = function (library)
+                ---@type LibraryRootStruct
+                local root = library.root
+                local completed = 0
+                for _, segments in pairs(root.dungeon_progress) do
+                    for _, state in ipairs(segments) do
+                        if state then
+                            completed = completed + 1
+                            if completed>=3 then return true end
+                            break --count only once no matter how many segments are completed
+                        end
+                    end
+                end
+                return false
+            end,
             job_types = {
                 {id = "RESCUE_SELF", weight = 5},
                 {id = "RESCUE_FRIEND", weight = 5},
@@ -36,92 +52,107 @@ local settings = {
                 {id = "EXPLORATION", weight = 2},
                 {id = "DELIVERY", weight = 2},
                 {id = "LOST_ITEM", weight = 4},
-                {id = "OUTLAW", weight =  4},
-                {id = "OUTLAW_HID", weight =  1},
+                {id = "OUTLAW", weight =  5},
                 {id = "OUTLAW_ITEM", weight = 2},
-                {id = "OUTLAW_ITEM_HID", weight = 1},
+                {id = "OUTLAW_ITEM_UNK", weight = 1},
                 {id = "OUTLAW_MONSTER_HOUSE", weight = 1},
                 {id = "OUTLAW_FLEE", weight = 1}
             }
         }
     },
     --- The maximum number of jobs that can be taken from job boards at a time
+    ---@type integer
     taken_limit = 8,
+    --- If true, taken jobs will be activated automatically. Players can always deactivate them manually if they so choose.
+    ---@type boolean
+    taken_jobs_start_active = true,
     --- The maximum amount of guest-based jobs that can be generated in the same dungeon.
     --- Guest-based jobs are: ESCORT, EXPLORATION
+    ---@type integer
     max_guests = 1,
     --- If true, guests will reduce the party size by 1 each.
     --- This cannot lower the party size below 1, for obvious reasons.
+    ---@type boolean
     guests_take_up_space = true, --TODO
     --- If true, losing guests will count as a loss for the entire exploration.
     --- If false, it will simply mark that specific job as failed.
+    ---@type boolean
     losing_guests_means_defeat = false, --TODO
-    ---  Define here, in order, the list of all difficulty rank ids you want to use
+    --- Define here, in order, the list of all difficulty rank ids you want to use
+    ---@type string[]
     difficulty_list = {"F", "E", "D", "C", "B", "A", "S", "STAR_1", "STAR_2", "STAR_3", "STAR_4", "STAR_5", "STAR_6", "STAR_7", "STAR_8", "STAR_9"},
     --- Clone of difficulty_list. Autogenerated on startup. Any value written here will be lost on load.
+    ---@type table<integer,string>
     num_to_difficulty = nil,
     --- Backwards reference for difficulty_list. Autogenerated on startup. Any value written here will be lost on load.
+    ---@type table<string,integer>
     difficulty_to_num = nil,
     --- All the data required for difficulty ranks. There must be an entry for every rank defined in difficulty_list:
     --- <diff_id> = {display_key, money_reward, extra_reward, outlaw_level, escort_level}
-    --- <diff_id> = one of the difficulties defined in "difficulty_list"
-    --- display_key: string key used when displaying the name of the rank
-    --- money_reward: the amount of money awarded at the end of the job. If set to 0, money rewards will be removed from the pool of reward types
-    --- extra_reward: the points of extra reward awarded at the end of the job. What these points are depends on extra_reward_type. If set to 0, extra_reward_type will be considered to be "none"
-    --- outlaw_level: the base level of all outlaws spawned by jobs with this difficulty.
-    --- escort_level: the level of all guests spawned by jobs with this difficulty
-    difficulty_data = { --TODO set levels
-        F = {display_key = "RANK_STRING_F", 100,  0},
-        E = {display_key = "RANK_STRING_E", 200, 100},
-        D = {display_key = "RANK_STRING_D", 400, 200},
-        C = {display_key = "RANK_STRING_C", 600, 400},
-        B = {display_key = "RANK_STRING_B", 700, 1250},
-        A = {display_key = "RANK_STRING_A", 1500, 2500},
-        S = {display_key = "RANK_STRING_S", 3000, 5000},
-        STAR_1 = {display_key = "RANK_STRING_STAR_1", 6000, 10000},
-        STAR_2 = {display_key = "RANK_STRING_STAR_2", 10000, 20000},
-        STAR_3 = {display_key = "RANK_STRING_STAR_3", 15000, 30000},
-        STAR_4 = {display_key = "RANK_STRING_STAR_4", 20000, 40000},
-        STAR_5 = {display_key = "RANK_STRING_STAR_5", 25000, 50000},
-        STAR_6 = {display_key = "RANK_STRING_STAR_6", 30000, 60000},
-        STAR_7 = {display_key = "RANK_STRING_STAR_7", 35000, 70000},
-        STAR_8 = {display_key = "RANK_STRING_STAR_8", 40000, 80000},
-        STAR_9 = {display_key = "RANK_STRING_STAR_9", 45000, 90000}
+    --- * <diff_id> = one of the difficulties defined in "difficulty_list"
+    --- * display_key: string key used when displaying the name of the rank
+    --- * money_reward: the amount of money awarded at the end of the job. If set to 0, money rewards will be removed from the pool of reward types
+    --- * extra_reward: the points of extra reward awarded at the end of the job. What these points are depends on extra_reward_type. If set to 0, extra_reward_type will be considered to be "none"
+    --- * outlaw_level: the base level of all outlaws spawned by jobs with this difficulty.
+    --- * escort_level: the level of all guests spawned by jobs with this difficulty
+    ---@type table<string, {display_key:string, money_reward:integer, extra_reward:integer, outlaw_level:integer, escort_level:integer}>
+    difficulty_data = { --TODO set level values
+        F = {display_key = "RANK_STRING_F", money_reward = 100, extra_reward = 0},
+        E = {display_key = "RANK_STRING_E", money_reward = 200, extra_reward = 100},
+        D = {display_key = "RANK_STRING_D", money_reward = 400, extra_reward = 200},
+        C = {display_key = "RANK_STRING_C", money_reward = 600, extra_reward = 400},
+        B = {display_key = "RANK_STRING_B", money_reward = 700, extra_reward = 1250},
+        A = {display_key = "RANK_STRING_A", money_reward = 1500, extra_reward = 2500},
+        S = {display_key = "RANK_STRING_S", money_reward = 3000, extra_reward = 5000},
+        STAR_1 = {display_key = "RANK_STRING_STAR_1", money_reward = 6000, extra_reward = 10000},
+        STAR_2 = {display_key = "RANK_STRING_STAR_2", money_reward = 10000, extra_reward = 20000},
+        STAR_3 = {display_key = "RANK_STRING_STAR_3", money_reward = 15000, extra_reward = 30000},
+        STAR_4 = {display_key = "RANK_STRING_STAR_4", money_reward = 20000, extra_reward = 40000},
+        STAR_5 = {display_key = "RANK_STRING_STAR_5", money_reward = 25000, extra_reward = 50000},
+        STAR_6 = {display_key = "RANK_STRING_STAR_6", money_reward = 30000, extra_reward = 60000},
+        STAR_7 = {display_key = "RANK_STRING_STAR_7", money_reward = 35000, extra_reward = 70000},
+        STAR_8 = {display_key = "RANK_STRING_STAR_8", money_reward = 40000, extra_reward = 80000},
+        STAR_9 = {display_key = "RANK_STRING_STAR_9", money_reward = 45000, extra_reward = 90000}
     },
     --- Function that changes the level of guests based on the player's level. It must return the new level for the guest, or it will have no effect.
-    --- arg1: base level of the guest.
-    --- arg2: average level of the player team. It may or may not be an integer.
-    --- arg3: highest level in the player team.
-    --- arg4: the settings data structure itself
-    guest_level_scaling = function(lvl, avg_team_lvl, hst_team_level, settings)
+    --- * lvl: base level of the guest.
+    --- * avg_team_lvl: average level of the player team. It may or may not be an integer.
+    --- * hst_team_lvl: highest level in the player team.
+    --- * settings: the settings data structure itself
+    ---@type fun(lvl:integer, avg_team_lvl:integer, hst_team_lvl:integer, settings: table): integer
+    guest_level_scaling = function(lvl, avg_team_lvl, hst_team_lvl, settings)
         local add = 0
         if avg_team_lvl > lvl then add = (avg_team_lvl - lvl) / 10 end -- add 10% of the level difference between guest and average
         return lvl + add
     end,
     --- Function that changes the level of outlaws based on the player's level. It must return the new level for the outlaw, or it will have no effect.
-    --- arg1: base level of the outlaw.
-    --- arg2: average level of the player team. It may or may not be an integer.
-    --- arg3: highest level in the player team.
-    --- arg4: the settings data structure itself
-    outlaw_level_scaling = function(lvl, avg_team_lvl, hst_team_level, settings)
+    --- * lvl: base level of the outlaw.
+    --- * avg_team_lvl: average level of the player team. It may or may not be an integer.
+    --- * hst_team_lvl: highest level in the player team.
+    --- * settings: the settings data structure itself
+    ---@type fun(lvl:integer, avg_team_lvl:integer, hst_team_lvl:integer, settings: table): integer
+    outlaw_level_scaling = function(lvl, avg_team_lvl, hst_team_lvl, settings)
         local add = 0
         if avg_team_lvl > lvl then add = (avg_team_lvl - lvl) / 10 end -- add 10% of the level difference between outlaw and average
-        add = add + (hst_team_level - avg_team_lvl) / 4 -- add 25% of the level difference between average and highest in the team
+        add = add + (hst_team_lvl - avg_team_lvl) / 4 -- add 25% of the level difference between average and highest in the team
         return lvl + add
     end,
     --- This is where dungeon difficulty is set. Quests can only generate for dungeons inside this list.
     --- Given the complexity of this structure, it is best generated using the "AddDungeonSection" function near the bottom of this file.
+    ---@type table<string, table<integer, {max_floor:integer, must_end:boolean, sections:{start:integer, difficulty:string}}>>
     dungeons = {},
     --- Jobs are sorted by dungeon, following this order. Missing dungeons are shoved at the bottom and sorted alphabetically.
     --- This list is automatically populated in call order when using the "AddDungeonSection" function near the bottom of this file.
+    ---@type table<string, integer>
     dungeon_order = {},
     --- Use this table to determine various properties regarding job types.
     --- Remove a job type entirely to disable its generation altogether.
     --- Format: <job_type_id> = {rank_modifier = number, min_rank = string}
-    --- <job_type_id>: one of RESCUE_SELF, RESCUE_FRIEND, ESCORT, EXPLORATION, DELIVERY, LOST_ITEM, OUTLAW, OUTLAW_UNK, OUTLAW_ITEM, OUTLAW_ITEM_UNK, OUTLAW_MONSTER_HOUSE, OUTLAW_FLEE
-    --- rank_modifier (optional): these jobs will always have this modifier applied to their rank.
-    --- min_rank (optional): this type of jobs can never be of a rank lower than this.
+    --- * <job_type_id>: one of RESCUE_SELF, RESCUE_FRIEND, ESCORT, EXPLORATION, DELIVERY, LOST_ITEM, OUTLAW, OUTLAW_ITEM, OUTLAW_ITEM_UNK, OUTLAW_MONSTER_HOUSE, OUTLAW_FLEE
+    --- * rank_modifier (optional): these jobs will always have this modifier applied to their rank.
+    --- * min_rank (optional): this type of jobs can never be of a rank lower than this.
     --- This influences possible dungeon spawn: a rank_modifier 1 job with min_rank "C" can also spawn in "D" rank dungeons.
+    ---@type table<string,{rank_modifier:integer|nil, min_rank:string|nil}>
     job_types = {
         RESCUE_SELF = {rank_modifier = 0, min_rank = "F"},
         RESCUE_FRIEND = {rank_modifier = 0, min_rank = "E"},
@@ -130,39 +161,43 @@ local settings = {
         DELIVERY = {rank_modifier = 0, min_rank = "D"},
         LOST_ITEM = {rank_modifier = 0, min_rank = "D"},
         OUTLAW = {rank_modifier = 1, min_rank = "C"},
-        OUTLAW_UNK = {rank_modifier = 1, min_rank = "C"},
         OUTLAW_ITEM = {rank_modifier = 1, min_rank = "C"},
         OUTLAW_ITEM_UNK = {rank_modifier = 1, min_rank = "C"},
         OUTLAW_MONSTER_HOUSE = {rank_modifier = 2, min_rank = "S"},
         OUTLAW_FLEE = {rank_modifier = 1, min_rank = "B"}
     },
-    --- Chance of special missions to begenerated. Special missions are just handcrafted scenarios with specific
+    --- Chance of special missions to be generated. Special missions are just handcrafted scenarios with specific
     --- client and target pairs and custom flavor texts. Set to 0 to disable altogether.
+    ---@type number
     special_chance = 0.2,
     --- Chance for supported quest types to have their destination floor hidden. Set to 0 to disable altogether.
     --- Players will still be notified when reaching the floor. It just won't show in the quest description.
+    ---@type number
     hidden_floor_chance = 0.15,
     --- A list of all types of rewards to be offered to players.
-    --- Format: {id = string, weight = number, min_rank = string}
-    --- id: one of the supported reward types. You can use duplicate values to alter odds depending on job rank.
-    --- weight: Chance of appearing. Set to 0 or delete altogether to stop a type of reward from being offered.
-    --- min_rank: optional. If set, this type of reward will only be offered if the job is this rank or higher.
+    --- Format: {id = string, weight = integer, min_rank = string}
+    --- * id: one of the supported reward types. You can use duplicate values to alter odds depending on job rank.
     --- Supported reward types are: item, money, item_item, money_item, client, exclusive
+    --- * weight: Chance of appearing. Set to 0 or delete altogether to stop a type of reward from being offered.
+    --- * min_rank: optional. If set, this type of reward will only be offered if the job is this rank or higher.
+    ---@type {id:string, weight:integer, min_rank:string|nil}[]
     reward_types = {
         {id = "item", weight = 6},
         {id = "money", weight = 2},
         {id = "item_item", weight = 3},  -- second item hidden
         {id = "money_item", weight = 1}, -- item is hidden
         {id = "client", weight = 1, min_rank = "STAR_1"},     -- appears as ???
-        {id = "exclusive", weight = 1, min_rank = "STAR_4"}   -- appears as ???. Award a 1* of client, or of target if outlaw.
+        {id = "exclusive", weight = 1, min_rank = "STAR_4"}   -- appears as ???. Award a 1* xcl item of client, or of target if outlaw mission.
     },
     --- The type of extra reward for all quests. It can be "none", "rank" or "exp". Any other value will result in "none"
+    ---@type string
     extra_reward_type = "exp",
     --- Use this to assign different weights to reward pools depending on the difficulty rank of the mission.
-    --- <diff_id> = {{id = pool_id, weight = number}}
-    --- <diff_id> = one of the difficulties defined in "difficulty_list"
-    --- id = the id of one of the reward pools defined in "reward_pools"
-    --- weight = Chance of appearing. Set to 0 or delete altogether to stop a reward pool from being picked.
+    --- <diff_id> = {{id = pool_id, weight = integer}}
+    --- * <diff_id> = one of the difficulties defined in "difficulty_list"
+    --- * id = the id of one of the reward pools defined in "reward_pools"
+    --- * weight = Chance of appearing. Set to 0 or delete altogether to stop a reward pool from being picked.
+    --- @type table<string,{id:string, weight:integer}[]>
     rewards_per_difficulty = {
         F = {
             {id = "NECESSITIES", weight = 10}, --Basic stuff (i.e. reviver seeds, escape orbs, leppa berries) *
@@ -710,12 +745,13 @@ local settings = {
         }
     },
     --- List of all reward pools. You must at least include all pools referenced in the rewards_per_difficulty table, but you can add more.
-    --- Pools are a list of items and other pools.
-    --- Format: {id = string, count = number, hidden = string, weight = number}
-    --- id = item_id or pool_id. If it matches a pool, count and hidden will be ignored.
-    --- count = Optional. The amount of items awarded. It cannot be higher than the item's max stack. Defaults to the item's max stack.
-    --- hidden = Optional. Hidden value that can be used for various purposes depending on the item.
-    --- weight = Chance of appearing. Set to 0 or delete altogether to stop an entry from being picked.
+    --- Pool ids may be either items, pools or a mix of the two.
+    --- Format: {id = string, count = number, hidden = string, weight = integer}
+    --- * id = item_id or pool_id. If it matches a pool, count and hidden will be ignored.
+    --- * count = Optional. The amount of items awarded. It cannot be higher than the item's max stack. Defaults to the item's max stack.
+    --- * hidden = Optional. Hidden value that can be used for various purposes depending on the item. Defaults to "".
+    --- * weight = Chance of appearing. Set to 0 or delete altogether to stop an entry from being picked.
+    --- @type table<string,{id:string, count:integer|nil, hidden:string|nil, weight:integer}[]>
     reward_pools = {
         NECESSITIES = {
             {id = "seed_reviver", weight = 10},
@@ -1220,11 +1256,12 @@ local settings = {
             {id = "apricorn_perfect", weight = 1}
         }
     },
-    --- Ids of items that can be used as targets, divided depending on the job type
-    --- Make sure they're either easy enough to obtain or impossible to lose, depending on the job
+    --- Ids of items that can be used as targets, divided depending on the job type.
+    --- Make sure they're either easy enough to obtain or impossible to lose, depending on the job.
     --- Format: <job_type_id> = {<item_id>}
-    --- <job_type_id> = the id of a job type defined inside "job_types"
-    --- <item_id> = the id of the item to use
+    --- * <job_type_id> = the id of a job type defined inside "job_types"
+    --- * <item_id> = the id of the item to use
+    ---@type table<string, string[]>
     target_items = {
         LOST_ITEM = {
             "mission_lost_scarf",
@@ -1245,11 +1282,12 @@ local settings = {
             "apricorn_plain"
         }
     },
-    --- Weighted table that associates mission difficulty to a specific tier of characters and outlaws
-    --- Format: <diff_id> = {{id = string, weight = number}}
-    --- <diff_id> = one of the difficulties defined in "difficulty_list"
-    --- id = A string that defines a pokémon tier id.
-    --- weight: Chance of being picked. Set to 0 or delete altogether to stop an entry from being picked.
+    --- Weighted table that associates mission difficulty to a specific tier of characters and outlaws.
+    --- Format: <diff_id> = {{id = string, weight = integer}}
+    --- * <diff_id> = one of the difficulties defined in "difficulty_list"
+    --- * id = A string that defines a pokémon tier id.
+    --- * weight: Chance of being picked. Set to 0 or delete altogether to stop an entry from being picked.
+    --- @type table<string,{id:string, weight:integer}[]>
     difficulty_to_tier = {
         F = {
             {id = "TIER_LOW", weight = 10},
@@ -1301,11 +1339,6 @@ local settings = {
             {id = "TIER_MID", weight = 0},
             {id = "TIER_HIGH", weight = 10}
         },
-        STAR_3 = {
-            {id = "TIER_LOW", weight = 0},
-            {id = "TIER_MID", weight = 0},
-            {id = "TIER_HIGH", weight = 10}
-        },
         STAR_4 = {
             {id = "TIER_LOW", weight = 0},
             {id = "TIER_MID", weight = 0},
@@ -1337,11 +1370,13 @@ local settings = {
             {id = "TIER_HIGH", weight = 10}
         }
     },
-    --- A list of Pokémon that will be used for job generation, sorted by arbitrary quest tiers
-    --- If possible, the system will always pick only Pokémon that are marked as seen
+    --- A list of Pokémon that will be used for job generation, sorted by arbitrary quest tiers.
+    --- If possible, the system will always pick only Pokémon that are marked as seen.
+    --- If no Pokémon in the list has been seen, any may be picked.
     --- Format: <tier> = {<monster_id>}
-    --- <tier> = one of the tier ids used in difficulty_to_tier
-    --- <monster_id> = the species id of a pokémon
+    --- * <tier> = one of the tier ids used in difficulty_to_tier
+    --- * <monster_id> = the species id of a pokémon
+    --- @type table<string,string[]>
     pokemon = {
         --weak mons for easy missions
         TIER_LOW =
@@ -1430,11 +1465,12 @@ local settings = {
          "yamask","yanmega",
          "zoroark"}
     },
-    --- A list of all possible job titles, divided by job type.
+    --- A list of all possible job display titles, divided by job type.
     --- You must also include lists for any special job types you intend to use.
     --- Format: <job_type_id> = {<string_key>}
-    --- <job_type_id> = either the id of a job type defined inside "job_types", or the id of a special job type
-    --- <string_key> = the localization key used for the title
+    --- * <job_type_id> = either the id of a job type defined inside "job_types", or the id of a special job type
+    --- * <string_key> = the localization key used for the title
+    --- @type table<string,string[]>
     job_titles =  {
         RESCUE_SELF = {
             "MISSION_TITLE_RESCUE_SELF_001",
@@ -1547,13 +1583,15 @@ local settings = {
     },
     --- A list of all possible job flavor text entries, divided by job type and by line.
     --- Format: <job_type_id> = {{<string_key>},{<string_key>}}
-    --- <job_type_id> = either the id of a job type defined inside "job_types", or the id of a special job type
-    --- <string_key> = the localization key used for the flavor text. Every job has 2 lists assigned: one for the top string and one for the bottom one.
+    --- * <job_type_id> = either the id of a job type defined inside "job_types", or the id of a special job type
+    --- * <string_key> = the localization key used for the flavor text. Every job has 2 lists assigned: one for the top string and one for the bottom one.
     --- If only one list is specified, the missing list will be left empty.
-    --- Localization:
-    --- {0}: target (or client, if there is no target)
-    --- {1}: dungeon
-    --- {2}: item
+    ---
+    --- Localization placeholders:
+    --- * {0}: target (or client, if there is no target)
+    --- * {1}: dungeon
+    --- * {2}: item
+    --- @type table<string,{[1]:string[], [2]:string[]}>
     job_flavor =  {
         RESCUE_SELF = {
             {
@@ -1743,16 +1781,17 @@ local settings = {
     },
     --- Law enforcement characters in your setting. All OUTLAW jobs except OUTLAW_ITEM
     --- and OUTLAW_ITEM_UNK use these characters as job clients.
-    --- You will be required to specify at least species and gender. Nickname, form and skin are optional.
+    --- You are be required to specify at least species and gender. Nickname, form and skin are optional.
     --- You may specify only 1 officer, and then a list containing any number of agents. 2 will be randomly
     --- picked every time the job completion cutscene is played.
-    --- Add "unique = true" to the MonsterIDTemplate to stop an agent from being picked twice. You must
+    --- You may add a weight property to agents to specify a custom chance of being picked. Any without will
+    --- have a weight of 1.
+    --- Add "unique = true" to the MonsterIDTable to stop an agent from being picked twice. You must
     --- have at least either 1 non-unique agent or 2 unique ones for this list table to be valid.
     --- Officer format: OFFICER = MonsterIDTable
     --- Agent format: AGENT = {MonsterIDTable}
     --- Format of MonsterIDTable: see the "monsterIdTemplate" function in missiongen_lib.lua
-    --- You may add a weight property to agents to specify a custom chance of being picked. Any without will
-    --- have a weight of 1.
+    ---@type {OFFICER:OfficerIDTable, AGENT:AgentIDTable[]}
     law_enforcement = {
         OFFICER = {species = "magnezone", gender = 0},
         AGENT = {
@@ -1762,11 +1801,12 @@ local settings = {
     },
     --- Defines the chance of either the officer or an agent being the client of a mission depending on
     --- the character tier of the mission, as defined in difficulty_to_tier.
-    --- Format: <tier> = {id = string, weight = number}
-    --- <tier> = one of the tier ids used in difficulty_to_tier
-    --- id = One of: OFFICER, AGENT
-    --- index: Optional. Ignored if id is OFFICER. You can set it to specify a specific agent instead of rolling using their chance in "law_enforcement".
-    --- weight: Chance of being picked. Set to 0 or delete altogether to stop an entry from being picked.
+    --- Format: <tier> = {id = string, weight = integer}
+    --- * <tier> = one of the tier ids used in difficulty_to_tier
+    --- * id = One of: OFFICER, AGENT
+    --- * index: Optional. Ignored if id is OFFICER. You can set it to specify a specific agent instead of rolling using their chance in "law_enforcement".
+    --- * weight: Chance of being picked. Set to 0 or delete altogether to stop an entry from being picked.
+    --- @type table<string,{id:string, index:integer, weight:integer}[]>
     enforcer_chance = {
         TIER_LOW = {
             {id = "OFFICER", weight = 2},
@@ -1783,20 +1823,22 @@ local settings = {
 
     },
     --- Data of characters and flavor key used for special jobs, divided by tier.
-    --- In outlaw related quests, you may use ENFORCER as a keyword for a random law enforcement official
+    --- In outlaw related quests, you may use ENFORCER as a keyword for a random law enforcement official.
     --- You may also use OFFICER or AGENT to require specific characters.
-    --- These keywords can only be used in place of MonsterIDTables
+    --- These keywords can only be used in place of MonsterIDTables.
     --- Format: <special_type> = {<tier> = {client = MonsterIDTable, target = MonsterIDTable, flavor = string}}
-    --- <special_type> = one of the following: LOVER, CHILD, FRIEND, RIVAL
-    --- <tier> = one of the tier ids used in difficulty_to_tier
-    --- client = the data used to generate this Pokémon
-    --- target = the data used to generate this Pokémon
-    --- flavor: flavor string key used for the job
+    --- * <special_type> = one of the following: LOVER, CHILD, FRIEND, RIVAL
+    --- * <tier> = one of the tier ids used in difficulty_to_tier
+    --- * client = the data used to generate this Pokémon
+    --- * target = the data used to generate this Pokémon
+    --- * flavor: flavor string key used for the job
     --- Format of MonsterIDTable: see the "monsterIdTemplate" function in missiongen_lib.lua
-    --- Localization:
-    --- {0}: target (or client, if there is no target)
-    --- {1}: dungeon
-    --- {2}: item
+    ---
+    --- Localization plaeholders:
+    --- * {0}: target (or client, if there is no target)
+    --- * {1}: dungeon
+    --- * {2}: item
+    ---@type table<string, table<string,{client:monsterIDTable|string, target:monsterIDTable|string, flavor:string}[]>>
     special_data = {
         LOVER = {
             TIER_LOW = {
@@ -1917,11 +1959,11 @@ settings.target_items.OUTLAW_ITEM_UNK = settings.target_items.OUTLAW_ITEM --copy
 --- Adds a new dungeon section to the list of possible job destinations.
 --- Section start values should always be added in ascending order.
 --- @param zone string the string id of the dungeon zone.
---- @param segment number the numeric id of the dungeon segment.
---- @param start number the starting floor of this dungeon section (start counting from 1 for this).
+--- @param segment integer the numeric id of the dungeon segment.
+--- @param start integer the starting floor of this dungeon section (start counting from 1 for this).
 --- @param difficulty string the string id of the difficulty assigned to this section.
---- @param finish number Only considered when first adding a segment to the list. This will be the last floor of the segment where jobs can spawn (start counting from 1 for this). If higher than the dungeon floors, it will default to the full dungeon length.
---- @param must_end boolean Only considered when first adding a segment to the list. If true, this segment must be completed before jobs can spawn in it. If false, the segment must be accessed at least once unless it's segment 0, which just needs to be unlocked. Defaults to true.
+--- @param finish? integer Only considered when first adding a segment to the list. This will be the last floor of the segment where jobs can spawn (start counting from 1 for this). If higher than the dungeon floors, it will default to the full dungeon length.
+--- @param must_end? boolean Only considered when first adding a segment to the list. If true, this segment must be completed before jobs can spawn in it. If false, the segment must be accessed at least once unless it's segment 0, which just needs to be unlocked. Defaults to true.
 function AddDungeonSection(zone, segment, start, difficulty, finish, must_end)
     if must_end == nil then must_end = true end
     if settings.dungeons[zone] == nil then
@@ -1933,8 +1975,8 @@ function AddDungeonSection(zone, segment, start, difficulty, finish, must_end)
         end
     end
     settings.dungeons[zone] = settings.dungeons[zone] or {}
-    settings.dungeons[zone][segment] = settings.dungeons[zone][segment] or {max_floor = finish-1, must_end = must_end}
-    table.insert(settings.dungeons[zone][segment], {start = start-1, difficulty = difficulty})
+    settings.dungeons[zone][segment] = settings.dungeons[zone][segment] or {max_floor = finish-1, must_end = must_end, sections = {}}
+    table.insert(settings.dungeons[zone][segment].sections, {start = start-1, difficulty = difficulty})
 end
 
 AddDungeonSection("tropical_path", 0, 3, "F", 4)
