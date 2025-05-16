@@ -1065,9 +1065,6 @@
   <data name="MISSION_BODY_SPECIAL_RIVAL_019" xml:space="preserve">
     <value>Please rescue my rival! We haven't finished\nseeing who is the bravest! Please, please!</value>
     <comment>Mission Body - Rivals - Swellow and Staraptor</comment>  </data>
-  <data name="MISSION_ESCORT_ADD" xml:space="preserve">
-    <value>Added [color=#00FF00]{0}[color] to the party as a guest.</value>
-    <comment></comment>  </data>
   <data name="MISSION_EXPLORATION_INTERACT" xml:space="preserve">
     <value>Please, take me to {0} {1}!</value>
     <comment></comment>  </data>

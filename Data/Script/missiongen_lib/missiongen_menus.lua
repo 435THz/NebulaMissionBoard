@@ -107,11 +107,13 @@ function BoardMenu:GenerateOptions()
         -- This is the whole reason why we need a shallowcopy function for the mission data: we can't guarantee the structures point to the same job after save and load
         local icon = ""
         if not self.board_id then
-            if job.Taken then icon = STRINGS:Format("\\uE10F")--open letter
+            if job.Taken and not self.library:HasExternalEvents(self.job.Zone) --if there is an eternal condition, show as not active
+            then icon = STRINGS:Format("\\uE10F")--open letter
             else icon = STRINGS:Format("\\uE10E")--closed letter
             end
         else
-            if job.Taken then icon = STRINGS:Format("\\uE10E")--closed letter
+            if job.Taken
+            then icon = STRINGS:Format("\\uE10E")--closed letter
             else icon = STRINGS:Format("\\uE110")--paper
             end
         end
@@ -257,19 +259,21 @@ function JobMenu:initialize(library, board_id, job_index, callback)
     self.library = library
     self.board = self.library.root.taken
     if board_id then self.board = self.library.root.boards[board_id] end
-    self.job = self.board[job_index]
+    self.job = self.board[job_index] --[[@as jobTable]]
     self.callback = callback
 
-    local choices = { { STRINGS:FormatKey("MENU_CANCEL"), true, function() self:choose(-1) end } }
+    local choices = {}
     local choice_str = STRINGS:FormatKey(self.library.globals.keys.BUTTON_TAKE)
-    if board_id then --TODO decide how to handle this: COMMON.HasSidequestInZone(self.job.Zone)
-        local enabled = true
-        if self.job.Taken then choice_str, enabled = STRINGS:FormatKey(self.library.globals.keys.BUTTON_SUSPEND), true end
-        table.insert(choices, 1, {choice_str, enabled, function() self:choose(1) end})
-        table.insert(choices, 2, {STRINGS:FormatKey(self.library.globals.keys.BUTTON_DELETE), true, function() self:choose(2) end})
+    if not board_id then
+        --if there is an external condition, lock quest and do not allow its activation
+        local enabled = not self.library:HasExternalEvents(self.job.Zone)
+        if self.job.Taken and enabled then choice_str = STRINGS:FormatKey(self.library.globals.keys.BUTTON_SUSPEND) end
+        table.insert(choices, {choice_str, enabled, function() self:choose(1) end})
+        table.insert(choices, {STRINGS:FormatKey(self.library.globals.keys.BUTTON_DELETE), true, function() self:choose(2) end})
     else
-        table.insert(choices, 1, {STRINGS:FormatKey(self.library.globals.keys.BUTTON_TAKE), library:IsTakenListFull() and not self.job.Taken, function() self:choose(1) end })
+        table.insert(choices, {STRINGS:FormatKey(self.library.globals.keys.BUTTON_TAKE), library:IsTakenListFull() and not self.job.Taken, function() self:choose(1) end })
     end
+    table.insert(choices, {STRINGS:FormatKey("MENU_CANCEL"), true, function() self:choose(-1) end })
     self.menu = RogueEssence.Menu.ScriptableSingleScriptMenu(232, 138, 24, choices, 1, function() self:choose(-1) end)
 
     self.job_window = self:GenerateSummary()
@@ -303,51 +307,13 @@ function JobMenu:GenerateSummary()
     summary.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.library.globals.keys.JOB_DIFFICULTY), RogueElements.Loc(16, 96)))
     summary.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.library.globals.keys.JOB_REWARD), RogueElements.Loc(16, 110)))
 
-    summary.Elements:Add(RogueEssence.Menu.MenuText(getCharacterName(self.job.Client), RogueElements.Loc(68, 54)))
-    summary.Elements:Add(RogueEssence.Menu.MenuText(getObjectiveString(self.library, self.job), RogueElements.Loc(68, 68)))
-    summary.Elements:Add(RogueEssence.Menu.MenuText(self:GetZoneString(), RogueElements.Loc(68, 82)))
-    summary.Elements:Add(RogueEssence.Menu.MenuText(self:GetDifficultyString(), RogueElements.Loc(68, 96)))
-    summary.Elements:Add(RogueEssence.Menu.MenuText(self:GetRewardString(), RogueElements.Loc(68, 110)))
+    summary.Elements:Add(RogueEssence.Menu.MenuText(library:GetCharacterName(self.job.Client), RogueElements.Loc(68, 54)))
+    summary.Elements:Add(RogueEssence.Menu.MenuText(library:GetObjectiveString(self.library, self.job), RogueElements.Loc(68, 68)))
+    summary.Elements:Add(RogueEssence.Menu.MenuText(library:GetZoneString(), RogueElements.Loc(68, 82)))
+    summary.Elements:Add(RogueEssence.Menu.MenuText(library:GetDifficultyString(), RogueElements.Loc(68, 96)))
+    summary.Elements:Add(RogueEssence.Menu.MenuText(library:GetRewardString(), RogueElements.Loc(68, 110)))
 
     return summary
-end
-
-function JobMenu:GetZoneString()
-    local zone_string, floor_string = "", ""
-    if self.job.Zone ~= "" then
-        zone_string = _DATA:GetZone(self.job.Zone).Segments[self.job.Segment]:ToString()
-        zone_string, floor_string = self.library:CreateColoredSegmentString(zone_string)
-        floor_string = STRINGS:Format(floor_string, tostring(self.job.Floor))
-    else
-        --TODO log error
-        zone_string, floor_string = self.job.Zone.."["..self.job.Segment.."]", self.job.Floor.."F"
-    end
-
-    if self.job.HideFloor then
-        return zone_string
-    else
-        return zone_string .. " " .. floor_string
-    end
-end
-
-function JobMenu:GetDifficultyString()
-    local diff_id = self.library.data.num_to_difficulty[self.job.Difficulty]
-    local key = self.library.data.difficulty_data[diff_id].display_key
-    STRINGS:FormatKey(key) --TODO write all the strings for the various difficulties
-end
-
-function JobMenu:GetRewardString()
-    local reward1 = ""
-    if self.library.globals.reward_types[self.job.RewardType][1] then
-        reward1 = JobMenu:GetItemName(self.job.Rewards[1])
-    else
-        local diff_id = self.library.data.num_to_difficulty[self.job.Difficulty]
-        local money = self.library.data.difficulty_data[diff_id].money_reward
-        reward1 = STRINGS:FormatKey("MONEY_AMOUNT", money)
-    end
-    local key_pointer = self.library.globals.reward_types[self.job.RewardType][4]
-    local key = self.library.globals.keys[key_pointer]
-    STRINGS:FormatKey(key, reward1)
 end
 
 --- Runs a JobMenu instance and returns its selected index.
@@ -381,28 +347,28 @@ local DungeonJobList = Class('DungeonJobList')
 --Used to see what jobs are in this dungeon
 --- Creates the menu, using the provided data if required
 --- @param library table the entire job library structure
---- @param dungeon string|nil Optional. A dungeon id to display the jobs of. It will be ignored unless this menu is opened from a ground map.
---- @param segment string|nil Optional. A section id to display the jobs of. It will be ignored unless this menu is opened from a ground map.
-function DungeonJobList:initialize(library, dungeon, segment)
+--- @param zone string|nil Optional. A zone id to display the jobs of. It will be ignored unless this menu is opened from a ground map.
+--- @param segment string|nil Optional. A segment id to display the jobs of. It will be ignored unless this menu is opened from a ground map.
+function DungeonJobList:initialize(library, zone, segment)
     self.library = library
     assert(self, "DungeonJobList:initialize(): Error, self is nil!")
     self.MAX_ENTRIES = 10
 
-    self.dungeon = ""
-    self.section = -1
+    self.zone = ""
+    self.segment = -1
 
     if RogueEssence.GameManager.Instance.CurrentScene == RogueEssence.Dungeon.DungeonScene.Instance then
-        self.dungeon = _ZONE.CurrentZoneID
-        self.section = _ZONE.CurrentMapID.Segment
-    elseif dungeon and segment then
-        self.dungeon = dungeon
+        self.zone = _ZONE.CurrentZoneID
+        self.segment = _ZONE.CurrentMapID.Segment
+    elseif zone and segment then
+        self.zone = zone
         self.segment = segment
     end
 
     self.entries = self:GenerateEntries()
     self.pages = math.max(0, self.entries-1)//self.MAX_ENTRIES +1
     self.page = 1
-    self:DrawMenu() --TODO
+    self:DrawMenu()
     self.menu = RogueEssence.Menu.ScriptableMenu(32, 32, 256, 176, function(input) self:Update(input) end)
 end
 
@@ -413,21 +379,23 @@ function DungeonJobList:GenerateEntries()
 
     local jobs = self.root.taken
     for _, job in ipairs(jobs) do
-        if job.Taken and job.Zone == self.dungeon then
-            if job.Segment == self.section then
+        ---@cast job jobTable
+        if job.Taken and job.Zone == self.zone then
+            if job.Segment == self.segment then
                 local icon = STRINGS:Format("\\uE10F") --open letter
-                if job.Completed then icon = STRINGS:Format("\\uE10A") end --check mark
+                if job.Completion>0 then icon = STRINGS:Format("\\uE10A") --check mark
+                elseif job.Completion<0 then icon = STRINGS:Format("\\uE10B") end -- X
 
                 local floor = ""
                 if not self.job.HideFloor then
-                    local _, floor_pattern = self.library:CreateColoredSegmentString(self.dungeon, self.section)
+                    local _, floor_pattern = self.library:CreateColoredSegmentString(self.zone, self.segment)
                     floor = STRINGS:Format(floor_pattern, job.Floor)
                 end
 
                 local message = getObjectiveString(self.library, self.job)
 
                 table.insert(list, {icon = icon, floor = floor, message = message})
-            elseif self.section and oth_segments[job.Segment] then
+            elseif self.segment and oth_segments[job.Segment] then
                 table.insert(oth_segments_list, job.Segment)
                 oth_segments[job.Segment] = true
             end
@@ -436,15 +404,15 @@ function DungeonJobList:GenerateEntries()
     if #oth_segments_list>0 then
         table.sort(oth_segments_list)
         for _, segment in ipairs(oth_segments_list) do
-            local seg_name = self.library:CreateColoredSegmentString(self.dungeon, segment)
+            local seg_name = self.library:CreateColoredSegmentString(self.zone, segment)
             local message = STRINGS:FormatKey(self.library.globals.keys.MISSION_OBJECTIVES_SIDE, seg_name)
             table.insert(list, {icon = nil, floor = nil, message = message})
         end
     end
     if #list <= 0 then
         if _DATA.Save.Rescue ~= nil and _DATA.Save.Rescue.Rescuing then
-            if self.section ~= _DATA.Save.Rescue.SOS.Goal.StructID.Segment then
-                local seg_name = self.library:CreateColoredSegmentString(self.dungeon, _DATA.Save.Rescue.SOS.Goal.StructID.Segment)
+            if self.segment ~= _DATA.Save.Rescue.SOS.Goal.StructID.Segment then
+                local seg_name = self.library:CreateColoredSegmentString(self.zone, _DATA.Save.Rescue.SOS.Goal.StructID.Segment)
                 local message = STRINGS:FormatKey(self.library.globals.keys.MISSION_OBJECTIVES_SIDE, seg_name)
                 table.insert(list, {icon = nil, floor = nil, message = message})
             else
@@ -452,10 +420,19 @@ function DungeonJobList:GenerateEntries()
                 local message = STRINGS:FormatKey(self.library.globals.keys.RESCUE_SELF, team_to_save)
                 table.insert(list, {icon = nil, floor = nil, message = message})
             end
-        elseif false then
-            --TODO make external conditions table and check for them. Use "Rescue" key and team name
-        else -- default
-            table.insert(list, {icon = nil, floor = nil, message = STRINGS:FormatKey(self.library.globals.keys.MISSION_OBJECTIVES_DEFAULT)})
+        else
+            local conditions = self.library:GetExternalConditions(self.zone)
+            for _, condition in ipairs(conditions) do
+                if condition.message_key then
+                    local icon = condition.icon or nil
+                    local argtable = {}
+                    if condition.message_args then argtable = condition.message_args(self.zone) end
+                    table.insert(list, {icon = icon, floor = nil, message = STRINGS:FormatKey(conditions.message_key, argtable[1] or "", argtable[2] or "", argtable[3] or "", argtable[4] or "", argtable[5] or "")})
+                end
+            end
+            if #list <= 0 then --default if it's still empty
+                table.insert(list, {icon = nil, floor = nil, message = STRINGS:FormatKey(self.library.globals.keys.MISSION_OBJECTIVES_DEFAULT)})
+            end
         end
     end
     return list
@@ -468,7 +445,7 @@ function DungeonJobList:DrawMenu()
     self.menu.Elements:Add(RogueEssence.Menu.MenuDivider(RogueElements.Loc(8, 8 + 12), self.menu.Bounds.Width - 8 * 2))
 
     --Standard title. Reuse this whenever a title is needed.
-    self.menu.Elements:Add(RogueEssence.Menu.MenuText("Mission Objectives", RogueElements.Loc(16, 8))) --TODO turn into key
+    self.menu.Elements:Add(RogueEssence.Menu.MenuText(self.library.globals.keys.OBJECTIVES_TITLE, RogueElements.Loc(16, 8)))
 
     --page number
     if self.pages > 1 then
@@ -492,7 +469,6 @@ function DungeonJobList:DrawMenu()
     end
 end
 
---TODO add page handling
 function DungeonJobList:Update(input)
     if input:JustPressed(RogueEssence.FrameInput.InputType.Confirm) then
         _GAME:SE("Menu/Cancel")
@@ -505,31 +481,31 @@ function DungeonJobList:Update(input)
         _MENU:RemoveMenu()
     elseif self.pages>1 and RogueEssence.Menu.InteractableMenu.IsInputting(input, LUA_ENGINE:MakeLuaArray(Dir8, {Dir8.Right})) then
         self.page = (self.page)   % self.pages + 1
-        --TODO SE
+        SOUND:PlaySE("Menu/Skip")
         self:DrawMenu()
     elseif self.pages>1 and RogueEssence.Menu.InteractableMenu.IsInputting(input, LUA_ENGINE:MakeLuaArray(Dir8, {Dir8.Left})) then
         self.page = (self.page-2) % self.pages + 1
-        --TODO SE
+        SOUND:PlaySE("Menu/Skip")
         self:DrawMenu()
     end
 end
 
 --- Runs a DungeonJobList instance.
 --- @param library table the entire job library structure.
---- @param dungeon string|nil Optional. A dungeon id to display the jobs of. It will be ignored unless this menu is opened from a ground map.
---- @param segment string|nil Optional. A section id to display the jobs of. It will be ignored unless this menu is opened from a ground map.
-function DungeonJobList.run(library, dungeon, segment)
-    local menu = DungeonJobList:new(library, dungeon, segment)
+--- @param zone string|nil Optional. A zone id to display the jobs of. It will be ignored unless this menu is opened from a ground map.
+--- @param segment string|nil Optional. A segment id to display the jobs of. It will be ignored unless this menu is opened from a ground map.
+function DungeonJobList.run(library, zone, segment)
+    local menu = DungeonJobList:new(library, zone, segment)
     UI:SetCustomMenu(menu.menu)
     UI:WaitForChoice()
 end
 
 --- Adds a DungeonJobList instance to the menu stack.
 --- @param library table the entire job library structure
---- @param dungeon string|nil Optional. A dungeon id to display the jobs of. It will be ignored unless this menu is opened from a ground map.
---- @param segment string|nil Optional. A section id to display the jobs of. It will be ignored unless this menu is opened from a ground map.
-function DungeonJobList.add(library, dungeon, segment)
-    local menu = DungeonJobList:new(library, dungeon, segment)
+--- @param zone string|nil Optional. A zone id to display the jobs of. It will be ignored unless this menu is opened from a ground map.
+--- @param segment string|nil Optional. A segment id to display the jobs of. It will be ignored unless this menu is opened from a ground map.
+function DungeonJobList.add(library, zone, segment)
+    local menu = DungeonJobList:new(library, zone, segment)
     UI:AddMenu(menu.menu)
 end
 
@@ -537,10 +513,6 @@ menus.BoardSelection = BoardSelectionMenu
 menus.Board = BoardMenu
 menus.Job = JobMenu
 menus.Objectives = DungeonJobList
-
-return menus
-
-
 
 -- TODO this will instead be a service just like in Dungeon Recruitment List
 function MISSION_GEN.EndOfDay(result, segmentID)
@@ -561,3 +533,7 @@ function MISSION_GEN.EndOfDay(result, segmentID)
 
     MISSION_GEN.RegenerateJobs(result)
 end
+
+return menus
+
+

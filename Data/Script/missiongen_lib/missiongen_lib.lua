@@ -9,7 +9,7 @@
 -- ----------------------------------------------------------------------------------------- --
 -- This file also comes with a pre-installed set of menus for mission display.
 
---- @alias LibraryRootStruct {boards:table<string,jobTable[]>,taken:jobTable[],dungeon_progress:table<string,table<integer, boolean>>}
+--- @alias LibraryRootStruct {boards:table<string,jobTable[]>,taken:jobTable[],dungeon_progress:table<string,table<integer, boolean>>,previous_limit:integer}
 --- @alias jobTable {Client:monsterIDTable, Target:monsterIDTable|nil, Flavor:{[1]:string, [2]:string}, Title:string, Zone:string, Segment:integer,
 --- Floor:integer, RewardType:string, Reward1:itemTable|nil, Reward2:itemTable|nil, Type:string, Completion:integer, Taken:boolean, BackReference:string|nil,
 --- Difficulty:integer, Item:string|nil, Special:string|nil, HideFloor:boolean} A table containing all properties of a job
@@ -26,34 +26,43 @@ local library = {
 	--- shortcut to the root of the saved mission data, made accessible for quick reference.
 	--- NEVER. EVER. CHANGE THIS VALUE.
 	---@type LibraryRootStruct
-	root = SV
+    root = SV
 }
 local menus = require("missiongen_menus")
 
---- root for global data and enum values.
+--- Root for global data and enum values.
 local globals = {}
---- gender values
+---@type table<string,integer> Gender values
 globals.gender = {}
 globals.gender.Unknown = -1
 globals.gender.Genderless = 0
 globals.gender.Male = 1
 globals.gender.Female = 2
---- c# types
+---@type table<string,integer> Completion values
+globals.completion = {}
+globals.completion.Failed = -1
+globals.completion.NotCompleted = 0
+globals.completion.Completed = 1
+---@type table<string,userdata> C# types
 globals.ctypes = {}
 globals.ctypes.LoadGen = luanet.import_type('RogueEssence.LevelGen.LoadGen')
 globals.ctypes.ChanceFloorGen = luanet.import_type('RogueEssence.LevelGen.ChanceFloorGen')
 globals.ctypes.RarityData = luanet.import_type('PMDC.Data.RarityData')
 globals.ctypes.FloorNameIDZoneStep = luanet.import_type('RogueEssence.LevelGen.FloorNameIDZoneStep')
---- supported reward types data
-globals.reward_types = {} -- hardcoded properties: item1, item2, exclusive, display_key_pointer
-globals.reward_types.item = 	  {true,  false, false, "REWARD_SINGLE"}
-globals.reward_types.money = 	  {false, false, false, "REWARD_SINGLE"}
-globals.reward_types.item_item =  {true,  true,  false, "REWARD_DOUBLE"}
-globals.reward_types.money_item = {false, true,  false, "REWARD_DOUBLE"}
-globals.reward_types.client = 	  {false, false, false, "REWARD_UNKNOWN"}
-globals.reward_types.exclusive =  {true,  false, true,  "REWARD_UNKNOWN"}
---- supported job types data
-globals.job_types = {} -- hardcoded properties: req_target, req_target_item, has_guest, target_outlaw, law_enforcement, can_hide_floor, objective_str
+---Supported reward types data
+---Hardcoded properties: item1, item2, exclusive, display_key_pointer
+---@type table<string,{[1]:boolean,[2]:boolean,[3]:boolean,[4]:string}>
+globals.reward_types = {}
+globals.reward_types.item = 	  {true,  false, false, "MENU_JOB_REWARD_SINGLE"}
+globals.reward_types.money = 	  {false, false, false, "MENU_JOB_REWARD_SINGLE"}
+globals.reward_types.item_item =  {true,  true,  false, "MENU_JOB_REWARD_DOUBLE"}
+globals.reward_types.money_item = {false, true,  false, "MENU_JOB_REWARD_DOUBLE"}
+globals.reward_types.client = 	  {false, false, false, "MENU_JOB_REWARD_UNKNOWN"}
+globals.reward_types.exclusive =  {true,  false, true,  "MENU_JOB_REWARD_UNKNOWN"}
+--- Supported job types data
+--- Hardcoded properties: req_target, req_target_item, has_guest, target_outlaw, law_enforcement, can_hide_floor
+---@type table<string,{[1]:boolean,[2]:boolean,[3]:boolean,[4]:boolean,[5]:boolean,[6]:boolean}>
+globals.job_types = {}
 globals.job_types.RESCUE_SELF =			 {false, false, false, false, false, false}
 globals.job_types.RESCUE_FRIEND =		 {true,  false, false, false, false, true}
 globals.job_types.ESCORT =				 {true,  false, true,  false, false, false}
@@ -66,25 +75,32 @@ globals.job_types.OUTLAW_ITEM_UNK =		 {true,  true,  false, false, true,  true}
 globals.job_types.OUTLAW_MONSTER_HOUSE = {true,  false, false, true,  true,  false}
 globals.job_types.OUTLAW_FLEE =			 {true,  false, false, true,  true,  true}
 --- Special cases for missions
+---@type table<string,string[]>
 globals.special_cases = {}
 globals.special_cases.RESCUE_FRIEND = {"CHILD", "LOVER", "RIVAL", "FRIEND"}
 --- Keywords for client and target generation
+---@type table<string,string>
 globals.keywords = {}
 globals.keywords.ENFORCER = "ENFORCER"
 globals.keywords.OFFICER = "OFFICER"
 globals.keywords.AGENT = "AGENT"
 --- Error types
+---@type table<string,string>
 globals.error_types = {}
 globals.error_types.DATA = "DataError"
 globals.error_types.ID = "IDError"
 --- Warning types
+---@type table<string,string>
 globals.warn_types = {}
+globals.warn_types.DATA = "MissingData"
 globals.warn_types.FLOOR_GEN = "InvalidFloor"
 globals.warn_types.ID = "MissingID"
 --- Default values for various things
+---@type table<string,string>
 globals.defaults = {}
 globals.defaults.item = "food_apple"
 --- Static display keys
+---@type table<string,string>
 globals.keys = {}
 globals.keys.RESCUE_SELF = "MENU_JOB_OBJECTIVE_RESCUE_SELF"
 globals.keys.RESCUE_FRIEND = "MENU_JOB_OBJECTIVE_RESCUE_FRIEND"
@@ -99,10 +115,8 @@ globals.keys.OUTLAW_MONSTER_HOUSE = "MENU_JOB_OBJECTIVE_OUTLAW_MONSTER_HOUSE"
 globals.keys.OUTLAW_FLEE = "MENU_JOB_OBJECTIVE_OUTLAW_FLEE"
 globals.keys.OBJECTIVE_DEFAULT = "MENU_JOB_OBJECTIVE_DEFAULT"
 globals.keys.REACH_SEGMENT = "MENU_JOB_OBJECTIVE_REACH_SEGMENT"
-globals.keys.REWARD_SINGLE = "MENU_JOB_REWARD_SINGLE"
-globals.keys.REWARD_DOUBLE = "MENU_JOB_REWARD_DOUBLE"
-globals.keys.REWARD_UNKNOWN = "MENU_JOB_REWARD_UNKNOWN"
 globals.keys.TAKEN_TITLE = "BOARD_TAKEN_TITLE"
+globals.keys.OBJECTIVES_TITLE = "MENU_JOB_OBJECTIVES_TITLE"
 globals.keys.JOB_ACCEPTED = "MENU_JOB_ACCEPTED"
 globals.keys.JOB_SUMMARY = "MENU_JOB_SUMMARY"
 globals.keys.JOB_CLIENT = "MENU_JOB_CLIENT"
@@ -195,8 +209,8 @@ local jobTemplate = function()
 		Reward2 = {},
 		---@type string The id of the type of this job
 		Type = "",
-		---@type integer the state of the job
-		Completion = -1, --TODO
+		---@type integer the state of the job. -1 means failed. 0 means not completed. 1 means completed. This is always reset to 0 on day end if the job rewards are not claimed (like when an adventure is failed).
+		Completion = 0, --TODO
 		---@type boolean Taken list: if true, the job is active. Boards: if true, the job is inside the taken list
 		Taken = false,
 		---@type string|nil Contains the name of the board it was in. It is used only in the taken list for discarding jobs.
@@ -215,18 +229,18 @@ end
 --- @return monsterIDTable #an empty MonsterID-style table
 local monsterIdTemplate = function()
     ---@type monsterIDTable
-	return {
-	    ---@type string|nil Optional. The nickname to apply to the character
-		Nickname = nil,
-		---@type string The species of the character
-		Species = "",
-		---@type integer|nil Optional. The form of the character. Defaults to 0
-		Form = 0,
-		---@type string|nil Optional. The skin to apply to the character. Defaults to "normal"
-		Skin = "normal",
-		---@type integer|nil Optional. The gender of the character. If absent or equal to -1, it will be rolled upon job generation
-		Gender = -1
-	}
+    return {
+        ---@type string|nil Optional. The nickname to apply to the character
+        Nickname = nil,
+        ---@type string The species of the character
+        Species = "",
+        ---@type integer|nil Optional. The form of the character. Defaults to 0
+        Form = 0,
+        ---@type string|nil Optional. The skin to apply to the character. Defaults to "normal"
+        Skin = "normal",
+        ---@type integer|nil Optional. The gender of the character. If absent or equal to -1, it will be rolled upon job generation
+        Gender = -1
+    }
 end
 
 -- ----------------------------------------------------------------------------------------- --
@@ -504,13 +518,25 @@ function library:GetCharacterName(char)
 	return "[color=#FF0000]???[color]"
 end
 
---- Given an item id, it returns its colored display name
---- @param item_id string the id of the item to generate the string of
+--- Given an item id or table, it returns its colored display name
+--- @param item string|itemTable the id of the item to generate the string of
 --- @return string #the display name of the item
-function library:GetItemName(item_id)
-	--TODO log item id error
-	return _DATA:GetItem(item_id):GetColoredName()
-	--TODO handle itemTable?
+function library:GetItemName(item)
+    if type(item) =="string" then item = {id = item} end
+    if not _DATA.DataIndices[RogueEssence.Data.DataManager.DataType.Item]:ContainsKey(item.id) then
+        return STRINGS:Format("[color=#FF0000]{0}[color]", item.id);
+    else
+        item.count = item.count or 1
+        local data = _DATA:GetItem(item.id)
+        local itemname = data:GetColoredName()
+
+        if (data.MaxStack > 1) then itemname = itemname.." (" + item.count + ")" end
+        if (data.UsageType == RogueEssence.Data.ItemData.UseType.Treasure) then
+            return STRINGS:Format("[color=#6384E6]{0}[color]", itemname);
+        else
+            return STRINGS:Format("[color=#FFCEFF]{0}[color]", itemname);
+        end
+    end
 end
 
 --- Given a job, it returns its objective string
@@ -518,6 +544,72 @@ end
 --- @return string #the objective string for the job
 function library:GetObjectiveString(job)
 	return STRINGS:FormatKey(self.globals.keys[job.Type], self:GetCharacterName(job.Client), self:GetCharacterName(job.Target), self:GetItemName(job.Item))
+end
+
+--- Given a job, it returns its location string, complete with floor if the job doesn't hide it
+--- @param job jobTable the job to generate the location string of
+--- @return string #the location string for the job
+function library:GetZoneString(job)
+    local zone_string, floor_string = "", ""
+    if job.Zone ~= "" and job.Segment>=0 then
+        zone_string, floor_string = self:CreateColoredSegmentString(job.Zone, job.Segment)
+        floor_string = STRINGS:Format(floor_string, tostring(job.Floor))
+    else
+        logWarn(globals.warn_types.DATA, "Could not generate loction string for segment "..tostring(job.Segment).." of "..job.Zone.." because it has no display name")
+        zone_string, floor_string = job.Zone.."["..tostring(job.Segment).."]", tostring(job.Floor).."F"
+    end
+
+    if job.HideFloor then
+        return zone_string
+    else
+        return zone_string .. " " .. floor_string
+    end
+end
+
+--- Given a job, it returns its difficulty string
+--- @param job jobTable the job to generate the difficulty string of
+--- @return string #the difficulty string for the job
+function library:GetDifficultyString(job)
+    local diff_id = self.data.num_to_difficulty[job.Difficulty]
+    local key = self.data.difficulty_data[diff_id].display_key
+    return STRINGS:FormatKey(key)
+end
+
+--- Given a job, it returns its reward string
+--- @param job jobTable the job to generate the reward string of
+--- @return string #the reward string for the job
+function library:GetRewardString(job)
+    local reward1 = ""
+    if globals.reward_types[job.RewardType][1] then
+        reward1 = self:GetItemName(job.Reward1)
+    else
+        local diff_id = self.data.num_to_difficulty[self.job.Difficulty]
+        local money = self.data.difficulty_data[diff_id].money_reward
+        reward1 = STRINGS:FormatKey("MONEY_AMOUNT", money)
+    end
+    local key = globals.reward_types[job.RewardType][4]
+    return STRINGS:FormatKey(key, reward1)
+end
+
+---Checks if there is at least one external event happening in the specified zone.
+---@param zone string the zone to run the checks on
+---@return boolean #true if any check returns true, false oterwise
+function library:HasExternalEvents(zone)
+    for _, condition_data in ipairs(self.data.external_events) do
+        if condition_data.condition(zone) then return true end
+    end
+    return false
+end
+
+---Checks for all external events and returns a list of all events that returned true
+---@param zone string the zone to run the checks on
+---@return {condition:fun(zone:string):(boolean), message_key:string|nil, message_args:fun(zone:string):(string[])|nil, icon:string|nil}[] #a list of all checks whose condition is fulfilled
+function library:GetExternalEvents(zone)
+    local conditions = {}
+    for _, condition_data in ipairs(self.data.external_events) do
+        if condition_data.condition(zone) then table.insert(conditions, condition_data) end
+    end
+    return conditions
 end
 
 -- ----------------------------------------------------------------------------------------- --
@@ -782,25 +874,27 @@ function library:GetValidDestinations()
 	for zone, zone_data in pairs(self.data.dungeons) do
 		if self.root.dungeon_progress[zone] ~= nil then
 			for segment, segment_data in pairs(zone_data) do
-				local validSegemnt = true
-				if self.root.dungeon_progress[zone][segment] == nil then
-					validSegemnt = false					 -- remove segments not unlocked
-				elseif self.root.dungeon_progress[zone][segment] == false then
-					validSegemnt = not segment_data.must_end -- remove "must_end" segments that are not completed
-				elseif self.root.dungeon_progress[zone][segment] == true then
-					validSegemnt = true						 -- completed dungeons are always ok
-				end
-				if validSegemnt then
-				local section = segment_data.sections
-					for i=section[1].start, segment_data.max_floor, 1 do
-						if not floors_occupied[zone][segment][i] then
-							if not job_options.floors_allowed[zone] then
-								job_options.floors_allowed[zone] = {}
-								table.insert(job_options.destinations, zone)
-							end
-							table.insert(job_options.floors_allowed[zone], {segment = segment, floor = i, difficulty = section.difficulty})
-						end
-					end
+			    if not self:HasExternalEvents(zone) then --skip segments that are locked by external conditons
+                    local validSegemnt = true
+                    if self.root.dungeon_progress[zone][segment] == nil then
+                        validSegemnt = false					 -- remove segments not unlocked
+                    elseif self.root.dungeon_progress[zone][segment] == false then
+                        validSegemnt = not segment_data.must_end -- remove "must_end" segments that are not completed
+                    elseif self.root.dungeon_progress[zone][segment] == true then
+                        validSegemnt = true						 -- completed dungeons are always ok
+                    end
+                    if validSegemnt then
+                    local section = segment_data.sections
+                        for i=section[1].start, segment_data.max_floor, 1 do
+                            if not floors_occupied[zone][segment][i] then
+                                if not job_options.floors_allowed[zone] then
+                                    job_options.floors_allowed[zone] = {}
+                                    table.insert(job_options.destinations, zone)
+                                end
+                                table.insert(job_options.floors_allowed[zone], {segment = segment, floor = i, difficulty = section.difficulty})
+                            end
+                        end
+                    end
 				end
 			end
 		end
@@ -946,6 +1040,7 @@ function library:PopulateBoard(board_id, destinations)
 					target = special_data.target
 					newJob.Flavor[1] = special_data.flavor
 				else
+				    -- Change tier if the currently picked one has no seen mons, choosing the most common
 					local otherPossibleTiers = {}
 					for _, tier2 in ipairs(self.data.difficulty_to_tier[difficulty]) do
 						if tier ~= tier2.id and tier2.weight > 0 then
@@ -968,6 +1063,7 @@ function library:PopulateBoard(board_id, destinations)
 						pool = self.data.pokemon[otherPossibleTiers[#otherPossibleTiers].id]
 						table.remove(otherPossibleTiers)
 					until #otherPossibleTiers <= 0
+					-- choose any from the originally picked list if there are no options anywhere
 					if #real_pool <= 0 then
 						real_pool = self.data.pokemon[tier]
 					end
@@ -989,7 +1085,7 @@ function library:PopulateBoard(board_id, destinations)
 				if client == globals.keywords.ENFORCER then
 					local roll = self:WeightedRandom(self.data.enforcer_chance[tier])
 					if not roll then
-					    --TODO error out
+					    logError(globals.error_types.DATA, "Setting \"enforcer_chance\" has no possible value for tier \"..tier..\"")
 					    break
 					end
 					if roll.id == globals.keywords.AGENT and roll.index and roll.index>0 and roll.index<=#self.data.law_enforcement.AGENT then
@@ -1001,7 +1097,7 @@ function library:PopulateBoard(board_id, destinations)
 				if target == globals.keywords.ENFORCER then
 					local roll = self:WeightedRandom(self.data.enforcer_chance[tier])
 					if not roll then
-					    --TODO error out
+					    logError(globals.error_types.DATA, "Setting \"enforcer_chance\" has no possible value for tier \"..tier..\"")
 					    break
 					end
 					if roll.id == globals.keywords.AGENT and roll.index and roll.index>0 and roll.index<=#self.data.law_enforcement.AGENT then
@@ -1024,9 +1120,18 @@ function library:PopulateBoard(board_id, destinations)
                     target = self:WeightedRandomExclude(self.data.law_enforcement.AGENT, {client}, false, "")
 					---@cast target monsterIDTable
 				end
-
+				local abort = false
+                if type(client) ~= "table" then
+                    logError(globals.error_types.DATA, "Could not generate job client. Its final value was: "..tostring(client))
+                    abort = true
+                end
+                if target and type(target) ~= "table" then
+                    logError(globals.error_types.DATA, "Could not generate job target. Its final value was: "..tostring(target))
+                    abort = true
+                end
+                if abort then break end
 				newJob.Client = self:NormalizeMonsterIDTable(client)
-				newJob.Target = self:NormalizeMonsterIDTable(target)
+				if target then newJob.Target = self:NormalizeMonsterIDTable(target) end
 
 
 
@@ -1122,6 +1227,10 @@ function library:PopulateBoard(board_id, destinations)
 						newJob.Flavor[i] = self:WeightlessRandom(self.data.job_flavor[job_type][i])
 					end
 				end
+				if not newJob.Flavor[1] then
+				    logError(globals.error_types.DATA, "No possible flavor text for job type \""..job_type.."\"")
+				    newJob.Flavor = {"", ""}
+				end
 
 				local title_group = job_type
 				if special ~= "" then
@@ -1129,9 +1238,9 @@ function library:PopulateBoard(board_id, destinations)
 				end
 				local title = self:WeightlessRandom(self.data.job_titles[title_group])
 				if not title then
-				    --TODO log error
+				    logError(globals.error_types.DATA, "No possible titles for quest category \""..title_group.."\"")
 				end
-				newJob.Title = title or self:GetObjectiveString(newJob)
+				newJob.Title = title or ""
 
 				-- add finished product
 				table.insert(self.root.boards[board_id], newJob)
@@ -1282,6 +1391,155 @@ function library:ToggleTakenJob(index)
 	self.root.taken[index].Taken = not self.root.taken[index].Taken
 end
 
+-- ----------------------------------------------------------------------------------------- --
+-- region COMMON support
+-- ----------------------------------------------------------------------------------------- --
+-- API specific for functions that are meant for common.lua
+
+--- Meant to be called in COMMON.ShowDestinantonMenu
+--- Creates a reference table whose keys are all the zones with at least one job in them.
+---@return table<string|boolean>
+function library:LoadJobDestinations()
+    local mission_dests = {}
+    for _, job in ipairs(self.root.taken) do
+        if job.Taken then
+            if not self:HasExternalEvents(job.Zone) then
+                mission_dests[job.Zone] = true
+            else
+                job.Taken = false
+            end
+        end
+    end
+    return mission_dests
+end
+
+--- Meant to be called in COMMON.ShowDestinantonMenu
+--- Takes a zone name and its id and returns a name string that also contains any related job and event icons.
+--- @param mission_dests table<string,boolean> the set of job destinations
+--- @param zone_id string the zone id string to format the name of
+--- @param zone_name string the starting name of the zone, as extracted from its ZoneEntrySummary
+--- @return string #the zone name string containing all the icons related to it.
+function library:FormatDestinationMenuZoneName(mission_dests, zone_id, zone_name)
+	local mission_icon, external_icons, ext_set = "", "", {}
+    -- add open letter icon to dungeons with jobs
+    if mission_dests[zone_id] then mission_icon = "\\" end --open letter
+    -- add external icon to dungeons with external events
+    local ext_conds = self:GetExternalEvents(zone_id)
+    for _, ext in ipairs(ext_conds) do
+        if ext.icon and ext.icon ~= "" and not ext_set[ext.icon] then
+            ext_set[ext.icon] = true
+            external_icons = external_icons .. (ext.icon)
+            if self.data.external_events_icon_mode == "FIRST" then break end
+        end
+    end
+    return STRINGS:Format(self.data.dungeon_list_pattern, zone_name, STRINGS:Format(mission_icon), STRINGS:Format(external_icons))
+end
+
+--- Meant to be called in COMMON:EnterDungeonMissionCheck
+--- Prepares the list of guests to be spawned and reduces the team limit accordingly if missiongen_settings.guests_take_up_space is set.
+--- @param zone_id string the zone id string to prepare the guest data for
+--- @return jobTable[], string[] #the list of indexes for jobs that have guests and the list of removed ally names.
+function library:EnterDungeonPrepareParty(zone_id)
+    local escort_jobs = {}
+
+    for _, job in ipairs(library.root.taken) do
+        if job.Taken and job.Completion < 1 and zone_id == job.Zone and globals.job_types[job.Type][3] then --has escort
+            --check to see if an escort is already in the team for this job. If so, don't include it in the guest list
+            local guest_found = false
+            for i = 0, _DATA.Save.ActiveTeam.Guests.Count - 1, 1 do
+                local guest_tbl = GAME:GetPlayerGuestMember(i).LuaData
+                if library:JobsEqual(guest_tbl.JobReference, job) then
+                    guest_found = true
+                end
+            end
+            if not guest_found then
+                table.insert(escort_jobs, job)
+            end
+        end
+    end
+
+    UI:ResetSpeaker()
+    -- if set to do so, remove as many characters from the team as necessary and reduce the team limit accordingly
+    local removed_names = {}
+    if self.data.guests_take_up_space then --TODO handle dungeons that reduce the team limit
+        self.root.previous_limit = RogueEssence.Dungeon.ExplorerTeam.MAX_TEAM_SLOTS
+        RogueEssence.Dungeon.ExplorerTeam.MAX_TEAM_SLOTS = math.max(1, self.data.min_party_limit,
+            self.root.previous_limit - #escort_jobs)
+        for i = RogueEssence.Dungeon.ExplorerTeam.MAX_TEAM_SLOTS, _DATA.Save.ActiveTeam.Players.Count - 1, 1 do
+            table.insert(removed_names, _DATA.Save.ActiveTeam.Players[i].Name)
+            _GAME.CurrentScene:SilentSendHome(i)
+        end
+    end
+    return escort_jobs, removed_names
+end
+
+--- Generates the clients of the provided jobs and adds them as guests.
+--- @param zone_id string the zone id string to generate the guests for
+--- @param escort_jobs jobTable[] the list of jobs to generate guests from
+--- @return string[] #the list list of added guest names.
+function library:EnterDungeonAddJobEscorts(zone_id, escort_jobs)
+    local zone_summary = _DATA.DataIndices[RogueEssence.Data.DataManager.DataType.Zone]:Get(zone_id)
+
+    -- calculate party-related level parameters
+    local party_tot, party_avg, party_hst, party_count = 0, 0, 0, _DATA.Save.ActiveTeam.Players.Count
+    for i = 0, party_count - 1, 1 do
+        local char_lvl = _DATA.Save.ActiveTeam.Players[i].Level
+        party_tot = party_tot + char_lvl
+        party_hst = math.max(char_lvl, party_hst)
+    end
+    party_avg = party_tot // party_count
+
+    -- add escorts to team
+    local added_names = {}
+    for _, job in ipairs(escort_jobs) do
+        local nickname = job.Client.Nickname or ""
+        local mId = self:TableToMonsterID(job.Client)
+        local diff = self.data.num_to_difficulty[job.Difficulty]
+        local level = self.data.difficulty_data[diff].escort_level
+        local dungeon_default = not level
+        if dungeon_default then level = zone_summary.Level end
+        level = self.data.guest_level_scaling(level, dungeon_default, party_avg, party_hst, self.data)
+
+        local new_mob = _DATA.Save.ActiveTeam:CreatePlayer(_DATA.Save.Rand, mId, level, "", -1)
+        new_mob.Nickname = nickname
+        local tactic = _DATA:GetAITactic("stick_together")
+        new_mob.Tactic = RogueEssence.Data.AITactic(tactic);
+        _DATA.Save.ActiveTeam.Guests:Add(new_mob)
+        local talk_evt = RogueEssence.Dungeon.BattleScriptEvent("EscortInteract") --TODO
+        new_mob.ActionEvents:Add(talk_evt)
+        local tbl = new_mob.LuaData
+        tbl.JobReference = job
+        table.insert(added_names, "[color=#00FF00]" .. new_mob.Name .. "[color]")
+    end
+    return added_names
+end
+
+--- Prints a SENT_HOME message using the provided list of formatted character display names.
+--- @param removed_list string[] a list of character display names
+function library:PrintSentHome(removed_list)
+	if #removed_list<1 then return end
+    UI:ResetSpeaker()
+    local list_removed = STRINGS:CreateList(removed_list) --[[@as string]]
+    if #removed_list > 1 then
+        UI:WaitShowDialogue(STRINGS:FormatKey("MSG_TEAM_SENT_HOME_PLURAL", list_removed))
+    elseif #removed_list == 1 then
+        UI:WaitShowDialogue(STRINGS:FormatKey("MSG_TEAM_SENT_HOME", list_removed))
+    end
+end
+
+--- Prints an ESCORT_ADD message using the provided list of formatted character display names.
+--- @param added_list string[] a list of character display names
+function library:PrintEscortAdd(added_list)
+    if #added_list < 1 then return end
+    UI:ResetSpeaker()
+    local list_removed = STRINGS:CreateList(added_list) --[[@as string]]
+    if #added_list > 1 then
+        UI:WaitShowDialogue(STRINGS:FormatKey("MISSION_ESCORT_ADD_PLURAL", list_removed))
+    elseif #added_list == 1 then
+        UI:WaitShowDialogue(STRINGS:FormatKey("MISSION_ESCORT_ADD", list_removed)) --TODO make globals
+    end
+end
+
 library.globals = globals
-library:load()
+library:load() --TODO migrate load routine to OnSaveLoad
 return library

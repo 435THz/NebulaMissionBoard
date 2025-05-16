@@ -125,6 +125,14 @@
     <value>Job List</value>
     <comment></comment>
   </data>
+  <data name="JOB_ESCORT_ADD" xml:space="preserve">
+    <value>{0} was added to the party as a guest.</value>
+    <comment></comment>
+  </data>
+  <data name="JOB_ESCORT_ADD_PLURAL" xml:space="preserve">
+    <value>{0} were added to the party as guests.</value>
+    <comment></comment>
+  </data>
   <data name="MENU_JOB_ACCEPTED" xml:space="preserve">
     <value>Accepted: {0}/{1}</value>
     <comment></comment>
@@ -196,6 +204,10 @@
     <value>Arrest big boss {1}.</value>
     <comment>0 is client. 1 is target. 2 is item.</comment>
   </data>
+  <data name="MENU_JOB_OBJECTIVES_TITLE" xml:space="preserve">
+    <value>Mission Objectives</value>
+    <comment></comment>
+  </data>
   <data name="MENU_JOB_PLACE" xml:space="preserve">
     <value>Place:</value>
     <comment></comment>
@@ -234,6 +246,70 @@
   </data>
   <data name="MISSION_EXP_DESCRIPTION" xml:space="preserve">
     <value>{0} Exp. Point Reward</value>
-    <comment>TODOFor labeling an Experience point reward</comment>
+    <comment>TODO For labeling an Experience point reward</comment>
+  </data>
+  <data name="RANK_STRING_F" xml:space="preserve">
+    <value>[color=#A1A1A1]F[color]</value>
+    <comment></comment>
+  </data>
+  <data name="RANK_STRING_E" xml:space="preserve">
+    <value>[color=#F8F8F8]E[color]</value>
+    <comment>\uE10C</comment>
+  </data>
+  <data name="RANK_STRING_D" xml:space="preserve">
+    <value>[color=#F8C8C8]D[color]</value>
+    <comment></comment>
+  </data>
+  <data name="RANK_STRING_C" xml:space="preserve">
+    <value>[color=#40F840]C[color]</value>
+    <comment></comment>
+  </data>
+  <data name="RANK_STRING_B" xml:space="preserve">
+    <value>[color=#F8C060]B[color]</value>
+    <comment></comment>
+  </data>
+  <data name="RANK_STRING_A" xml:space="preserve">
+    <value>[color=#00F8F8]A[color]</value>
+    <comment></comment>
+  </data>
+  <data name="RANK_STRING_S" xml:space="preserve">
+    <value>[color=#F80000]S[color]</value>
+    <comment></comment>
+  </data>
+  <data name="RANK_STRING_STAR_1" xml:space="preserve">
+    <value>[color=#F8F800]\uE10C1[color]</value>
+    <comment></comment>
+  </data>
+  <data name="RANK_STRING_STAR_2" xml:space="preserve">
+    <value>[color=#F8F800]\uE10C2[color]</value>
+    <comment></comment>
+  </data>
+  <data name="RANK_STRING_STAR_3" xml:space="preserve">
+    <value>[color=#F8F800]\uE10C3[color]</value>
+    <comment></comment>
+  </data>
+  <data name="RANK_STRING_STAR_4" xml:space="preserve">
+    <value>[color=#F8F800]\uE10C4[color]</value>
+    <comment></comment>
+  </data>
+  <data name="RANK_STRING_STAR_5" xml:space="preserve">
+    <value>[color=#F8F800]\uE10C5[color]</value>
+    <comment></comment>
+  </data>
+  <data name="RANK_STRING_STAR_6" xml:space="preserve">
+    <value>[color=#F8F800]\uE10C6[color]</value>
+    <comment></comment>
+  </data>
+  <data name="RANK_STRING_STAR_7" xml:space="preserve">
+    <value>[color=#F8F800]\uE10C7[color]</value>
+    <comment></comment>
+  </data>
+  <data name="RANK_STRING_STAR_8" xml:space="preserve">
+    <value>[color=#F8F800]\uE10C8[color]</value>
+    <comment></comment>
+  </data>
+  <data name="RANK_STRING_STAR_9" xml:space="preserve">
+    <value>[color=#F8F800]\uE10C9[color]</value>
+    <comment></comment>
   </data>
 </root>
