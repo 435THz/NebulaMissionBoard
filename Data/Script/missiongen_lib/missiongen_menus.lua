@@ -405,7 +405,7 @@ function DungeonJobList:GenerateEntries()
         table.sort(oth_segments_list)
         for _, segment in ipairs(oth_segments_list) do
             local seg_name = self.library:CreateColoredSegmentString(self.zone, segment)
-            local message = STRINGS:FormatKey(self.library.globals.keys.MISSION_OBJECTIVES_SIDE, seg_name)
+            local message = STRINGS:FormatKey(self.library.globals.keys.REACH_SEGMENT, seg_name)
             table.insert(list, {icon = nil, floor = nil, message = message})
         end
     end
@@ -413,7 +413,7 @@ function DungeonJobList:GenerateEntries()
         if _DATA.Save.Rescue ~= nil and _DATA.Save.Rescue.Rescuing then
             if self.segment ~= _DATA.Save.Rescue.SOS.Goal.StructID.Segment then
                 local seg_name = self.library:CreateColoredSegmentString(self.zone, _DATA.Save.Rescue.SOS.Goal.StructID.Segment)
-                local message = STRINGS:FormatKey(self.library.globals.keys.MISSION_OBJECTIVES_SIDE, seg_name)
+                local message = STRINGS:FormatKey(self.library.globals.keys.REACH_SEGMENT, seg_name)
                 table.insert(list, {icon = nil, floor = nil, message = message})
             else
                 local team_to_save = _DATA.Save.Rescue.SOS.TeamName --TODO test or add colors
@@ -431,7 +431,7 @@ function DungeonJobList:GenerateEntries()
                 end
             end
             if #list <= 0 then --default if it's still empty
-                table.insert(list, {icon = nil, floor = nil, message = STRINGS:FormatKey(self.library.globals.keys.MISSION_OBJECTIVES_DEFAULT)})
+                table.insert(list, {icon = nil, floor = nil, message = STRINGS:FormatKey(self.library.globals.keys.OBJECTIVE_DEFAULT)})
             end
         end
     end

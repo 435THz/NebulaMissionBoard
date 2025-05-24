@@ -2,10 +2,10 @@
     common.lua
     A collection of frequently used functions and values!
 ]] --
-local mission_gen = require("Data.Script.missiongen_lib.missiongen_lib")
+MissionGen = require("missiongen_lib.missiongen_lib")
 
 function COMMON.ShowDestinationMenu(dungeon_entrances, ground_entrances, force_list, speaker, confirm_msg)
-    local job_dests = mission_gen:LoadJobDestinations()
+    local job_dests = MissionGen:LoadJobDestinations()
 
     local open_dests = {}
     -- check for unlock of grounds
@@ -35,7 +35,7 @@ function COMMON.ShowDestinationMenu(dungeon_entrances, ground_entrances, force_l
                 else
                     zone_name = "[color=#00FFFF]" .. zone_summary.Name:ToLocal() .. "[color]"
                 end
-                zone_name = mission_gen:FormatDestinationMenuZoneName(job_dests, dungeon_entrances[ii], zone_name) -- missiongen_lib.lua file
+                zone_name = MissionGen:FormatDestinationMenuZoneName(job_dests, dungeon_entrances[ii], zone_name) -- missiongen_lib.lua file
 
                 table.insert(open_dests, {
                     Name = zone_name,
@@ -133,10 +133,10 @@ function COMMON.ShowDestinationMenu(dungeon_entrances, ground_entrances, force_l
 end
 
 function COMMON.EnterDungeonMissionCheck(zoneId, segmentID)
-    local escort_jobs, removed_names = mission_gen:EnterDungeonPrepareParty(zoneId)
-    mission_gen:PrintSentHome(removed_names)
+    local escort_jobs, removed_names = MissionGen:EnterDungeonPrepareParty(zoneId)
+    MissionGen:PrintSentHome(removed_names)
 
-    local added_names = mission_gen:EnterDungeonAddJobEscorts(zoneId, escort_jobs)
+    local added_names = MissionGen:EnterDungeonAddJobEscorts(zoneId, escort_jobs)
     for _, name in ipairs(COMMON.GetSortedKeys(SV.missions.Missions)) do
         local mission = SV.missions.Missions[name]
         if mission.Complete == COMMON.MISSION_INCOMPLETE and zoneId == mission.DestZone and segmentID ==
@@ -157,5 +157,5 @@ function COMMON.EnterDungeonMissionCheck(zoneId, segmentID)
             end
         end
     end
-    mission_gen:PrintEscortAdd(added_names)
+    MissionGen:PrintEscortAdd(added_names)
 end

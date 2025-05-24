@@ -120,20 +120,38 @@
   <data name="DLG_MISSION_CONTINUE_CONFIRM" xml:space="preserve">
     <value>Do you really want to leave?</value>
     <comment></comment>  </data>
-  <data name="DLG_MISSION_CONTINUE_NO_ONGOING" xml:space="preserve">
+    <data name="DLG_MISSION_CONTINUE_NO_ONGOING" xml:space="preserve">
     <value>You have no more ongoing missions beyond this point.\nWould you like to leave the dungeon now?</value>
     <comment></comment>  </data>
   <data name="DLG_MISSION_CONTINUE_ONGOING" xml:space="preserve">
     <value>You have more ongoing missions, but would you like to leave the dungeon now?</value>
     <comment></comment>  </data>
-	 <data name="DLG_MISSION_OUTLAW_FLEE" xml:space="preserve">
+  <data name="DLG_MISSION_OUTLAW_SPAWN_FAIL" xml:space="preserve">
+    <value>But the outlaw doesn't seem to be around...</value>
+    <comment></comment>  </data>
+  <data name="DLG_MISSION_OUTLAW_REACHED" xml:space="preserve">
+    <value>Wanted outlaw spotted!</value>
+    <comment></comment>  </data>
+  <data name="DLG_MISSION_OUTLAW_FLEE" xml:space="preserve">
     <value>Waah! A-adventurers! Run for it!</value>
+    <comment></comment>  </data>
+  <data name="DLG_MISSION_OUTLAW_FLED" xml:space="preserve">
+    <value>{0} escaped...</value>
+    <comment></comment>  </data>
+  <data name="DLG_MISSION_OUTLAW_MONSTER_HOUSE" xml:space="preserve">
+    <value>You've fallen into my trap!</value>
     <comment></comment>  </data>
   <data name="DLG_MISSION_OUTLAW_DEFEATED" xml:space="preserve">
     <value>Yes!\nKnocked out outlaw {0}!</value>
     <comment></comment>  </data>
   <data name="DLG_MISSION_OUTLAW_ITEM_RETRIEVED" xml:space="preserve">
-    <value>Yes!\nYou reclaimed the {0}!</value>
+    <value>Yes!\nYou reclaimed the {1}!</value>
+    <comment></comment>  </data>
+  <data name="DLG_MISSION_OUTLAW_ITEM_UNK_DEFEATED" xml:space="preserve">
+    <value>Huh?\n{0} dropped the {1}![br]Yes!\n{0} was the outlaw!</value>
+    <comment></comment>  </data>
+  <data name="DLG_MISSION_OUTLAW_ITEM_UNK_RETRIEVED" xml:space="preserve">
+    <value>Huh?\n{0} was holding the {1}![br]Yes!\n{0} was the outlaw!</value>
     <comment></comment>  </data>
   <data name="DLG_MISSION_OUTLAW_HOUSE_DEFEATED" xml:space="preserve">
     <value>Yes!\nKnocked out outlaw {0} and goons!</value>
@@ -144,7 +162,35 @@
   <data name="DLG_MISSION_OUTLAW_MINIONS_DEFEATED" xml:space="preserve">
     <value>Grr! You won't be able to defeat me!</value>
     <comment></comment>  </data>
-	  <data name="MISSION_TITLE_RESCUE_SELF_001" xml:space="preserve">
+  <data name="DLG_MISSION_RESCUE_FOUND" xml:space="preserve">
+    <value>Yes! You've found {0}!\nDo you want to use your badge to rescue {0}?</value>
+    <comment></comment>  </data>
+  <data name="DLG_MISSION_RESCUE_CONFIRM" xml:space="preserve">
+    <value>Your badge shines on {0}, and {0} is transported away magically!</value>
+    <comment></comment>  </data>
+  <data name="DLG_MISSION_DELIVERY_FOUND" xml:space="preserve">
+    <value>Yes! You've located {0}! Do you want to deliver the requested {1} to {0}?</value>
+    <comment></comment>  </data>
+  <data name="DLG_MISSION_DELIVERY_CONFIRM" xml:space="preserve">
+    <value>Thanks for the {0}!\n I'll see you in town after with your reward!</value>
+    <comment></comment>  </data>
+  <data name="DLG_MISSION_DELIVERY_DENY" xml:space="preserve">
+    <value>Oh, please! I really need that {0}...</value>
+    <comment></comment>  </data>
+  <data name="DLG_MISSION_DELIVERY_NO_ITEM" xml:space="preserve">
+    <value>The requested {1} isn't in the Treasure Bag.\nThere is nothing to deliver.</value>
+    <comment></comment>  </data>
+  <data name="DLG_MISSION_DELIVERY_NO_ITEM_CHAR" xml:space="preserve">
+    <value>Huh, you don't have the {0}? That's too bad...</value>
+    <comment></comment>  </data>
+  <data name="DLG_MISSION_TARGET_LEFT" xml:space="preserve">
+    <value>{0} escaped from the dungeon!</value>
+    <comment></comment>  </data>
+  <data name="DLG_MISSION_LOST_ITEM_RETRIEVED" xml:space="preserve">
+    <value>Yes! You found {0}'s {1}!</value>
+    <comment></comment>  </data>
+
+  <data name="MISSION_TITLE_RESCUE_SELF_001" xml:space="preserve">
     <value>I'm too worn out to go on...</value>
     <comment>Mission Title Text - Target is Client</comment>  </data>
   <data name="MISSION_TITLE_RESCUE_SELF_002" xml:space="preserve">
@@ -1065,6 +1111,7 @@
   <data name="MISSION_BODY_SPECIAL_RIVAL_019" xml:space="preserve">
     <value>Please rescue my rival! We haven't finished\nseeing who is the bravest! Please, please!</value>
     <comment>Mission Body - Rivals - Swellow and Staraptor</comment>  </data>
+
   <data name="MISSION_EXPLORATION_INTERACT" xml:space="preserve">
     <value>Please, take me to {0} {1}!</value>
     <comment></comment>  </data>
@@ -1076,9 +1123,15 @@
     <comment></comment>  </data>
   <data name="MISSION_ESCORT_REPLACE" xml:space="preserve">
     <value>Have one of your team members leave the dungeon to make room for your client, {0}.</value>
-    <comment></comment>  </data>
+    <comment></comment>  </data> TODO
   <data name="MISSION_ESCORT_REPLACE_ASK" xml:space="preserve">
-    <value>Have {0} leave the dungeon?</value>
+    <value>Have {0} leave the dungeon?</value> TODO
+    <comment></comment>  </data>
+  <data name="MISSION_ESCORT_ADD" xml:space="preserve">
+    <value>Added {0} to the party as a guest.</value>
+    <comment></comment>  </data>
+  <data name="MISSION_ESCORT_ADD_PLURAL" xml:space="preserve">
+    <value>Added {0} to the party as guests.</value>
     <comment></comment>  </data>
   <data name="MISSION_ESCORT_FAINTED" xml:space="preserve">
     <value>Oh, no! {0} fainted!</value>
@@ -1104,4 +1157,37 @@
   <data name="MISSION_EXPLORATION_DEPART" xml:space="preserve">
     <value>{0} left the dungeon!</value>
     <comment></comment>  </data>
+
+  <data name="MISSION_RESCUE_CONFIRM_DEFAULT" xml:space="preserve">
+    <value>Thanks for the rescue!\nI'll see you in town after with your reward!</value>
+    <comment>Mission Dialogue - Rescue - Yes</comment>  </data>
+  <data name="MISSION_RESCUE_CONFIRM_CHILD" xml:space="preserve">
+    <value>Thank you for rescuing me! This place was so scary! I can't wait to see my family again!</value>
+    <comment>Mission Dialogue - Rescue Child - Yes</comment>  </data>
+  <data name="MISSION_RESCUE_CONFIRM_FRIEND" xml:space="preserve">
+    <value>Oh, my friend sent you to rescue me? Thank goodness! We'll see you in town later to say thanks!</value>
+    <comment>Mission Dialogue - Rescue Friend - Yes</comment>  </data>
+  <data name="MISSION_RESCUE_CONFIRM_RIVAL" xml:space="preserve">
+    <value>Tch, my rival sent you to rescue me, huh? Well, thank you. We'll reward you later in town.</value>
+    <comment>Mission Dialogue - Rescue Rival - Yes</comment>  </data>
+  <data name="MISSION_RESCUE_CONFIRM_LOVER" xml:space="preserve">
+    <value>Oh, my beloved {0} sent you to rescue me? I can't wait to reunite with them!</value>
+    <comment>Mission Dialogue - Rescue Lover - Yes</comment>  </data>
+
+  <data name="MISSION_RESCUE_DENY_DEFAULT" xml:space="preserve">
+    <value>H-hey! Don't just leave me here!</value>
+    <comment>Mission Dialogue - Rescue - No</comment>  </data>
+  <data name="MISSION_RESCUE_DENY_CHILD" xml:space="preserve">
+    <value>Waaah! It's s-scary here! P-please help me!</value>
+    <comment>Mission Dialogue - Rescue Child - No</comment>  </data>
+  <data name="MISSION_RESCUE_DENY_FRIEND" xml:space="preserve">
+    <value>Please don't leave me here! My friend is probably worried sick!</value>
+    <comment>Mission Dialogue - Rescue Friend - No</comment>  </data>
+  <data name="MISSION_RESCUE_DENY_RIVAL" xml:space="preserve">
+    <value>Woah, don't just leave me hanging here!</value>
+    <comment>Mission Dialogue - Rescue Rival - No</comment>  </data>
+  <data name="MISSION_RESCUE_DENY_LOVER" xml:space="preserve">
+    <value>Please, get me out of here! I just want to see my dear {0} again!</value>
+    <comment>Mission Dialogue - Rescue Lover - No</comment>  </data>
+
 </root>
