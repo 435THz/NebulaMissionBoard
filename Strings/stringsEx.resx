@@ -1190,4 +1190,25 @@
     <value>Please, get me out of here! I just want to see my dear {0} again!</value>
     <comment>Mission Dialogue - Rescue Lover - No</comment>  </data>
 
+  <data name="MISSION_COMPLETED_CUTSCENE_AWARD_MONEY" xml:space="preserve">
+    <value>Team {0} received {1}.[pause=40]</value>
+    <comment></comment>  </data>
+  <data name="MISSION_COMPLETED_CUTSCENE_AWARD_ITEM" xml:space="preserve">
+    <value>Team {0} received [a/an] {1}.[pause=40]</value>
+    <comment></comment>  </data>
+  <data name="MISSION_COMPLETED_CUTSCENE_AWARD_ITEM" xml:space="preserve">
+    <value>The {1} was sent to storage.</value>
+    <comment></comment>  </data>
+  <data name="MISSION_COMPLETED_CUTSCENE_AWARD_CHAR" xml:space="preserve">
+    <value>The adventurous exploits of Team {0} are an inspiration to me![br] Please, let me become a member of your team!</value>
+    <comment></comment>  </data>
+  <data name="MISSION_COMPLETED_CUTSCENE_AWARD_CHAR_PROMPT" xml:space="preserve">
+    <value>Accept {1} as a team member?</value>
+    <comment></comment>  </data>
+  <data name="MISSION_COMPLETED_CUTSCENE_AWARD_EXTRA" xml:space="preserve">
+    <value>Your team gained {1} EXP as a reward![pause=40]</value>
+    <comment></comment>  </data>
+  <data name="MISSION_COMPLETED_CUTSCENE_AWARD_RANK_UP" xml:space="preserve">
+    <value>Congratulations![pause=0][br]Team {0} went up in rank from the\n[color=#FFA5FF]{1} Rank[color] to the [color=#FFA5FF]{2} Rank[color]!</value>
+    <comment></comment>  </data>
 </root>

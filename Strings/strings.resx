@@ -240,8 +240,12 @@
     <value>Take Job</value>
     <comment></comment>
   </data>
-  <data name="MENU_JOBLIST_TITLE" xml:space="preserve">
+  <data name="MENU_OPTION_JOBLIST" xml:space="preserve">
     <value>Job List</value>
+    <comment>TODO</comment>
+  </data>
+  <data name="MENU_OPTION_OBJECTIVES_LIST" xml:space="preserve">
+    <value>Mission Objectives</value>
     <comment>TODO</comment>
   </data>
   <data name="MISSION_EXP_DESCRIPTION" xml:space="preserve">

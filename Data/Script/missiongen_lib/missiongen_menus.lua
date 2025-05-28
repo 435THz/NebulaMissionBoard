@@ -416,7 +416,7 @@ function DungeonJobList:GenerateEntries()
                 local message = STRINGS:FormatKey(self.library.globals.keys.REACH_SEGMENT, seg_name)
                 table.insert(list, {icon = nil, floor = nil, message = message})
             else
-                local team_to_save = _DATA.Save.Rescue.SOS.TeamName --TODO test or add colors
+                local team_to_save = String.Format("[color=#FFA5FF]{0}[color]", _DATA.Save.Rescue.SOS.TeamName)
                 local message = STRINGS:FormatKey(self.library.globals.keys.RESCUE_SELF, team_to_save)
                 table.insert(list, {icon = nil, floor = nil, message = message})
             end
@@ -513,26 +513,6 @@ menus.BoardSelection = BoardSelectionMenu
 menus.Board = BoardMenu
 menus.Job = JobMenu
 menus.Objectives = DungeonJobList
-
--- TODO this will instead be a service just like in Dungeon Recruitment List
-function MISSION_GEN.EndOfDay(result, segmentID)
-    --Mark the current dungeon as visited
-
-    local cur_zone_name = _ZONE.CurrentZoneID
-
-    if result == RogueEssence.Data.GameProgress.ResultType.Cleared then
-        PrintInfo("Completed zone "..cur_zone_name.." with segment "..segmentID)
-        if SV.MissionPrereq.DungeonsCompleted[cur_zone_name] == nil then
-            SV.MissionPrereq.DungeonsCompleted[cur_zone_name] = { }
-            SV.MissionPrereq.DungeonsCompleted[cur_zone_name][segmentID] = 1
-            SV.MissionPrereq.NumDungeonsCompleted = SV.MissionPrereq.NumDungeonsCompleted + 1
-        elseif SV.MissionPrereq.DungeonsCompleted[cur_zone_name][segmentID] == nil then
-            SV.MissionPrereq.DungeonsCompleted[cur_zone_name][segmentID] = 1
-        end
-    end
-
-    MISSION_GEN.RegenerateJobs(result)
-end
 
 return menus
 

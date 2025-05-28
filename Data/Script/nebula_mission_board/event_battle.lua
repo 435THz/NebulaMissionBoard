@@ -8,5 +8,9 @@ function BATTLE_SCRIPT.EscortInteract(owner, ownerChar, context, args)
 end
 
 function BATTLE_SCRIPT.EscortReached(owner, ownerChar, context, args)
-	MissionGen:EscortReached(owner, ownerChar, context, args)
+    MissionGen:EscortReached(owner, ownerChar, context, args)
+end
+
+function BATTLE_SCRIPT.RescueReached(owner, ownerChar, context, args)
+	MissionGen:RescueReached(owner, ownerChar, context, args)
 end

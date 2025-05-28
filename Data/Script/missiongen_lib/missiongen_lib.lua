@@ -106,6 +106,8 @@ globals.keywords.AGENT = "AGENT"
 globals.error_types = {}
 globals.error_types.DATA = "DataError"
 globals.error_types.ID = "IDError"
+globals.error_types.SCENE = "WrongSceneError"
+globals.error_types.MAPGEN = "MapgenError"
 --- Warning types
 ---@type table<string,string>
 globals.warn_types = {}
@@ -133,6 +135,8 @@ globals.keys.OUTLAW_MONSTER_HOUSE = "MENU_JOB_OBJECTIVE_OUTLAW_MONSTER_HOUSE" --
 globals.keys.OUTLAW_FLEE = "MENU_JOB_OBJECTIVE_OUTLAW_FLEE" --Objective string for fleeing outlaw jobs. {0} = Client, {1} = Target
 globals.keys.OBJECTIVE_DEFAULT = "MENU_JOB_OBJECTIVE_DEFAULT" --Objective string displayed when there are no jobs.
 globals.keys.REACH_SEGMENT = "MENU_JOB_OBJECTIVE_REACH_SEGMENT" --Objective string displayed when there are jobs in a different segment. {0} = Segment
+globals.keys.OPTION_JOBLIST = "MENU_OPTION_JOBLIST" --Name of the main menu button that displays the taken list
+globals.keys.OPTION_OBJECTIVES_LIST = "MENU_OPTION_OBJECTIVES_LIST" --Name of the main menu button that displays the current objectives
 globals.keys.TAKEN_TITLE = "BOARD_TAKEN_TITLE" --Name of the taken board in the board menu
 globals.keys.OBJECTIVES_TITLE = "MENU_JOB_OBJECTIVES_TITLE" --Label for the button used to view mission objectives in dungeons
 globals.keys.JOB_ACCEPTED = "MENU_JOB_ACCEPTED" --Displayed when viewing boards. It shows how full the taken list is. {0} Current Taken Count, {1} = Taken Limit
@@ -185,6 +189,13 @@ globals.keysEx.OUTLAW_ITEM_UNK_DEFEATED = "DLG_MISSION_OUTLAW_ITEM_UNK_DEFEATED"
 globals.keysEx.CONTINUE_ONGOING = "DLG_MISSION_CONTINUE_ONGOING" --Message that asks whether or not to stay in a dungeon when there are still more jobs.
 globals.keysEx.CONTINUE_CONFIRM = "DLG_MISSION_CONTINUE_CONFIRM" --Message that asks for confirmation before leaving a dungeon when there are still more jobs.
 globals.keysEx.CONTINUE_NO_ONGOING = "DLG_MISSION_CONTINUE_NO_ONGOING" --Message that asks whether or not to stay in a dungeon when there are no more jobs.
+globals.keysEx.CUTSCENE_AWARD_ITEM = "MISSION_COMPLETED_CUTSCENE_AWARD_ITEM" --Message used to notify the player about the item they were awarded. {0} = team, {1} = item
+globals.keysEx.CUTSCENE_AWARD_ITEM_STORAGE = "MISSION_COMPLETED_CUTSCENE_AWARD_ITEM_STORAGE" --Message used to notify the player about fact that the item they were awarded was sent to storage. {0} = team, {1} = item
+globals.keysEx.CUTSCENE_AWARD_MONEY = "MISSION_COMPLETED_CUTSCENE_AWARD_MONEY" --Message used to notify the player about the sum of money they were awarded. {0} = team, {1} = money
+globals.keysEx.CUTSCENE_AWARD_CHAR = "MISSION_COMPLETED_CUTSCENE_AWARD_CHAR" --Dialogue from a client that wants to join the team as the reward. {0} = team
+globals.keysEx.CUTSCENE_AWARD_CHAR_PROMPT = "MISSION_COMPLETED_CUTSCENE_AWARD_CHAR_PROMPT" --Message asking the player if they want the client as a team member. {0} = team, {1} = client
+globals.keysEx.CUTSCENE_AWARD_EXTRA = "MISSION_COMPLETED_CUTSCENE_AWARD_EXTRA" --Message used to notify the player about the extra reward they were awarded. {0} = team, {1} = amount
+globals.keysEx.CUTSCENE_AWARD_RANK_UP = "MISSION_COMPLETED_CUTSCENE_AWARD_RANK_UP" --Message used to notify the player about a rank up. {0} = team, {1} = original rank, {2} = new rank
 
 -- ----------------------------------------------------------------------------------------- --
 -- #region DATA GENERATORS
@@ -272,7 +283,7 @@ local jobTemplate = function()
 		Completion = 0,
 		---@type boolean Taken list: if true, the job is active. Boards: if true, the job is inside the taken list
 		Taken = false,
-		---@type string|nil Contains the name of the board it was in. It is used only in the taken list for discarding jobs.
+		---@type string|nil Contains the name of the board it was in. It is used only in the taken list for discarding jobs and for routing the player during the reward process.
 		BackReference = nil,
 		---@type integer The difficulty index of this job.
 		Difficulty = -1,
@@ -366,7 +377,7 @@ local shuffleTable = function(tbl, replay_sensitive)
     local indices = COMMON:GetSortedKeys(tbl, true)
     local shuffled = {}
     for _=1, #tbl, 1 do
-        local index, pos = library:WeightlessRoll(indices, replay_sensitive)
+        local index, pos = library:WeightlessRandom(indices, replay_sensitive)
         table.remove(indices, pos)
         table.insert(shuffled, tbl[index])
     end
@@ -642,6 +653,31 @@ local deliveryReachedFlow = function(context, job, oldDir)
     end
 end
 
+local resetAnims = function()
+    local player_count = GAME:GetPlayerPartyCount()
+    local guest_count = GAME:GetPlayerGuestCount()
+    for i = 0, player_count - 1, 1 do
+        local player = GAME:GetPlayerPartyMember(i)
+        if not player.Dead then
+            local anim = RogueEssence.Dungeon.CharAnimAction()
+            anim.BaseFrameType = 0 --none
+            anim.AnimLoc = player.CharLoc
+            anim.CharDir = player.CharDir
+            TASK:WaitTask(player:StartAnim(anim))
+        end
+    end
+
+    for i = 0, guest_count - 1, 1 do
+        local guest = GAME:GetPlayerGuestMember(i)
+        if not guest.Dead then
+            local anim = RogueEssence.Dungeon.CharAnimAction()
+            anim.BaseFrameType = 0 --none
+            anim.AnimLoc = guest.CharLoc
+            anim.CharDir = guest.CharDir
+            TASK:WaitTask(guest:StartAnim(anim))
+        end
+    end
+end
 --- Returns a list of all types that cover the weaknesses of a type combination
 ---@return referenceList
 local getCoverageTypes = function(types)
@@ -1139,6 +1175,50 @@ local isValidForm = function(species, form, flee_check)
     return true
 end
 
+local rewardCutscene = function(jobIndex, callback)
+    local job = library.root.taken[jobIndex]
+
+    local npc_count = 1
+    local npcs = {}
+    local enforcer_mode = globals.job_types[job.Type].law_enforcement
+    if enforcer_mode then
+        npc_count = 4
+    elseif globals.job_types[job.Type].req_target and not globals.job_types[job.Type].target_outlaw then
+        npc_count = 2
+    end
+    local unique_officers = {}
+    for i = 1, npc_count, 1 do
+        local monsterID
+        if i == 1 then
+            if enforcer_mode then
+                monsterID = library.data.law_enforcement.OFFICER
+            else
+                monsterID = job.Client
+            end
+        elseif i == 2 then
+            monsterID = job.Target
+        elseif i > 2 then
+            monsterID = library:WeightedRandomExclude(library.data.law_enforcement.AGENT, unique_officers, false, "") --[[@as AgentIDTable]]
+            if monsterID.Unique then
+                unique_officers[monsterID] = true
+            end
+        end
+        ---@cast monsterID monsterIDTable
+        local ID = library:TableToMonsterID(monsterID)
+        local char = RogueEssence.Ground.GroundChar(ID,
+            RogueElements.Loc(0, 0),
+            Direction.Down, library:GetCharacterName(monsterID, true), "Job_Cutscene_Char_" .. i)
+        table.insert(npcs, char)
+        char:ReloadEvents()
+        GAME:GetCurrentGround():AddTempChar(char)
+    end
+
+    callback(job, npcs)
+
+    for _, char in ipairs(npcs) do
+        GAME:GetCurrentGround():RemoveTempChar(char)
+    end
+end
 -- ----------------------------------------------------------------------------------------- --
 -- #region GETTERS
 -- ----------------------------------------------------------------------------------------- --
@@ -1157,6 +1237,13 @@ end
 function library:IsBoardFull(board_id)
 	if self.data.boards[board_id] then return #self.root.boards[board_id]>=self.data.boards[board_id].size
 	else return end
+end
+
+--- Checks if a board is active by running its condition check
+--- @param board_id string the id of the board to check
+--- @return boolean|nil #true if the board's condition check passes, false otherwise. Returns nil if the board does not exist
+function library:IsBoardActive(board_id)
+    if self.data.boards[board_id] then return self.data.boards[board_id].condition(self) else return end
 end
 
 --- Checks if the player's taken job list is empty or not
@@ -1258,18 +1345,22 @@ end
 --- Given a monsterIDTable, return a colored string.
 --- If the monsterIDTable contains a Nickname, it will be used to generate the name, and will always be in cyan.
 --- @param char monsterIDTable the character data to generate the string of
+--- @param no_color? boolean Optional. If true, the return string will not be colored
 --- @return string #the display name of the character
-function library:GetCharacterName(char)
+function library:GetCharacterName(char, no_color)
 	if char then
-		if char.Nickname then
+        if char.Nickname then
+			if no_color then return char.Nickname end
 			return '[color=#00FFFF]'..char.Nickname..'[color]'
 		elseif char.Species ~= "" then
+            if no_color then return _DATA:GetMonster(char.Species).Name:ToLocal() end
 			return _DATA:GetMonster(char.Species):GetColoredName()
 		end
 	end
 	local errorCause = " nil"
 	if char then errorCause = "n invalid" end
 	logError(globals.error_types.DATA, "GetCharacterName was called using a"..errorCause.." monsterIDTable.")
+	if no_color then return "???" end
 	return "[color=#FF0000]???[color]"
 end
 
@@ -1453,7 +1544,7 @@ end
 --- @param replay_sensitive? boolean if true, this function will use a replay-safe rng function. Defaults to false.
 --- @return T|nil, number|nil #the element extracted and its index in the list, or nil, nil if the list was empty
 function library:WeightedRandom(list, replay_sensitive)
-    local entry, index = self:WeightlessRandomExclude(list, {}, replay_sensitive)
+    local entry, index = self:WeightedRandomExclude(list, {}, replay_sensitive)
 	return entry, index
 end
 
@@ -1471,9 +1562,10 @@ function library:WeightedRandomExclude(list, exclude, replay_sensitive, alt_id)
 	for _, element in ipairs(list) do
 		local match = element
 		if id ~= "" then match = element[id] end
-		if not exclude[match] then
-			if element.weight
-			then weight = weight + element.weight
+        if not exclude[match] then
+			local elem_weight = element.weight or element.Weight
+			if elem_weight
+			then weight = weight + elem_weight
 			else weight = weight + 1
 			end
 		end
@@ -1569,7 +1661,7 @@ function library:SortBoard(board_id)
 end
 
 --- Resets all boards and regenerates their contents.
---- Recommended to be called on day end.
+--- Called on day end.
 function library:UpdateBoards()
 	self:loadDungeonTable()
 	self:FlushBoards()
@@ -1587,8 +1679,8 @@ end
 --- Fills all empty slots in all boards.
 function library:PopulateBoards()
 	local destinations = self:GetValidDestinations()
-	for board, board_data in pairs(self.data.boards) do
-	    if not board_data.condition or board_data.condition(self) then
+	for board in pairs(self.data.boards) do
+	    if library:IsBoardActive(board) then
 		    self:PopulateBoard(board, destinations)
 		end
 	end
@@ -1597,11 +1689,6 @@ end
 --- Resets the requested board. It will throw an error if the board does not exist.
 --- @param board_id string the id of the board to be flushed
 function library:FlushBoard(board_id)
-	for _, job in self.root.boards do
-		if job.BackReference == board_id then
-			job.BackReference = nil
-		end
-	end
 	if self.data.boards[board_id] == nil then
 		--delete because it shouldn't exist
 		self.root.boards[board_id] = nil
@@ -2148,15 +2235,13 @@ end
 --- The original job, if it still exists, will be marked as not Taken.
 --- @param index integer The index of the job to delete
 function library:RemoveTakenJob(index)
-	local job = self.root.taken[index]
-	if job.BackReference then
-		local bRefIndex = self:FindJobInBoard(job, job.BackReference)
-		if bRefIndex > 0 then
-			self.root.boards[job.BackReference][bRefIndex].Taken = false
-		end
-	end
-	table.remove(self.root.taken, index)
-	-- no need to sort here because they are guaranteed to be in order thanks to sorting every time a job is taken
+    local job = self.root.taken[index]
+    local bRefIndex = self:FindJobInBoard(job, job.BackReference)
+    if bRefIndex > 0 then
+        self.root.boards[job.BackReference][bRefIndex].Taken = false
+    end
+    table.remove(self.root.taken, index)
+    -- no need to sort here because they are guaranteed to be in order thanks to sorting every time a job is taken
 end
 
 --- Changes a taken job's active status.
@@ -2178,8 +2263,12 @@ end
 ---@param tutor_allowed integer the maximum number of tutor moves that the character is allowed to have. Defaults to 0
 ---@param egg_allowed integer the maximum number of egg moves that the character is allowed to have. Defaults to 0
 ---@param blacklist referenceList list of move ids that must never be included in a moveset generated by this function
----@return string[] #the list of slot types chosen, in the order they were applied. Slot types are "stab", "coverage", "damage" and "status". Useful to apply changes later on.
+---@return slotType[] #the list of slot types chosen, in the order they were applied. Slot types are "stab", "coverage", "damage" and "status". Useful to apply changes later on.
 function library:AssignBossMoves(chara, tm_allowed, tutor_allowed, egg_allowed, blacklist)
+    if RogueEssence.GameManager.Instance.CurrentScene ~= RogueEssence.Dungeon.DungeonScene.Instance then
+    	logError(globals.error_types.SCENE, "This function can only be called inside dungeons.")
+		return {}
+	end
     -- prepare lists
     ---@type table<categoryType, integer>
     local allowed = { level = 4 }
@@ -2218,6 +2307,10 @@ end
 --- Function that asks the player if they want to warp out. It checks if the player has ongoing missions
 --- and displays messages accordingly.
 function library:AskMissionWarpOut()
+    if RogueEssence.GameManager.Instance.CurrentScene ~= RogueEssence.Dungeon.DungeonScene.Instance then
+    	logError(globals.error_types.SCENE, "This function can only be called inside dungeons.")
+		return
+	end
     local function MissionWarpOut()
         warpOut()
         GAME:WaitFrames(80)
@@ -2286,11 +2379,32 @@ function library:AskMissionWarpOut()
     end
 end
 
+function library:TeamTurnTo(char)
+    if RogueEssence.GameManager.Instance.CurrentScene ~= RogueEssence.Dungeon.DungeonScene.Instance then
+    	logError(globals.error_types.SCENE, "This function can only be called inside dungeons.")
+		return
+	end
+    local player_count = GAME:GetPlayerPartyCount()
+    local guest_count = GAME:GetPlayerGuestCount()
+    for i = 0, player_count - 1, 1 do
+        local player = GAME:GetPlayerPartyMember(i)
+        if not player.Dead then
+            DUNGEON:CharTurnToChar(player, char)
+        end
+    end
+
+    for i = 0, guest_count - 1, 1 do
+        local guest = GAME:GetPlayerGuestMember(i)
+        if not guest.Dead then
+            DUNGEON:CharTurnToChar(guest, char)
+        end
+    end
+end
 
 -- ----------------------------------------------------------------------------------------- --
 -- #region COMMON support
 -- ----------------------------------------------------------------------------------------- --
--- API specific for functions that are meant for common.lua
+-- API specific for functions that are meant for common.lua or one of its child files
 
 --- Meant to be called in COMMON.ShowDestinantonMenu
 --- Creates a reference table whose keys are all the zones with at least one job in them.
@@ -2434,12 +2548,302 @@ function library:PrintEscortAdd(added_list)
     UI:ResetSpeaker()
     local list_added = STRINGS:CreateList(added_list) --[[@as string]]
     if #added_list > 1 then
-        UI:WaitShowDialogue(STRINGS:FormatKey("MISSION_ESCORT_ADD_PLURAL", list_added))
+        UI:WaitShowDialogue(STRINGS:Format(RogueEssence.StringKey(globals.keysEx.ESCORT_ADD_PLURAL):ToLocal(), list_added))
     elseif #added_list == 1 then
-        UI:WaitShowDialogue(STRINGS:FormatKey(globals.keysEx.ESCORT_ADD, list_added))
+        UI:WaitShowDialogue(STRINGS:Format(RogueEssence.StringKey(globals.keysEx.ESCORT_ADD):ToLocal(), list_added))
     end
 end
 
+--- Meant to be called in COMMON.ExitDungeonMissionCheckEx
+--- Removes all target items from the inventory and requests a board update.
+--- Its return value should itself be returned by COMMON.ExitDungeonMissionCheckEx
+--- Please pass all of the function's parameters to this one, in order.
+function library:ExitDungeonMissionCheckEx(result, _, _, _)
+    _DATA.Save.ActiveTeam.Guests:Clear()
+
+    --Remove any lost/stolen items. If the item contains a numerical HiddenValue and that number
+    --corresponds to a job_index containing its id then delete it on exiting the dungeon.
+    local isItemJobTarget = function(item)
+        local num = tonumber(item.HiddenValue)
+        if num then
+            local job = MissionGen.root.taken[num]
+            if job.Item == item.ID then return true end
+        end
+        return false
+    end
+
+
+    for i = GAME:GetPlayerBagCount() - 1, 0, -1 do
+        if isItemJobTarget(GAME:GetPlayerBagItem(i)) then
+            GAME:TakePlayerBagItem(i)
+        end
+    end
+
+    --search equipped items as well
+    for i = 0, GAME:GetPlayerPartyCount() - 1, 1 do
+        if isItemJobTarget(GAME:GetPlayerEquippedItem(i)) then
+            GAME:TakePlayerEquippedItem(i)
+        end
+    end
+
+    self:UpdateBoards()
+    if MissionGen.root.mission_flags.MissionCompleted then
+	    resetAnims()
+        COMMON.EndDungeonDay(result, self.data.end_dungeon_day_destination.zone, -1, self.data.end_dungeon_day_destination.map, 0)
+        return true
+    end
+    return false
+end
+
+-- ----------------------------------------------------------------------------------------- --
+-- #region GROUND support
+-- ----------------------------------------------------------------------------------------- --
+-- API specific for functions that are meant for ground map scripting
+
+--- Meant to be called in all ground maps where there are job boards, and must be ran before they fade in.
+--- It iterates through the taken list, checking if the next job is in this map and running the reward cutscene for it
+--- until it either finds a job that needs to be awarded on a different map, in which case it moves the player there,
+--- Or it runs out of jobs.
+--- The game will be in a fade out state every time the callback is run.
+---@param callback fun(job:jobTable, npcs:any[]) the reward cutscene callback function.
+--- It takes the job data table and the GroundChar npcs as arguments.
+function library:PlayJobsCompletedCutscene(callback)
+    local index = 1
+    if self.temp.reward_job_index then index = self.temp.reward_job_index end
+	local CurrentZone = _ZONE.CurrentZoneID
+    local CurrentMap = _ZONE.CurrentMapID.ID
+
+    while index <= #self.root.taken do
+	    local job = self.root.taken[index]
+		if job.Completion == globals.completion.Completed then
+			local dest = self.data.boards[job.BackReference --[[@as string]]].location
+            if CurrentZone ~= dest.zone or CurrentMap ~= dest.map then
+                self.temp.reward_job_index = index
+                GAME:EnterZone(dest.zone, -1, dest.map, 0)
+                return
+            end
+            GAME:FadeOut(false, 1)
+            rewardCutscene(index, callback)
+            self:RemoveTakenJob(index)
+        else
+			job.Completion = globals.completion.NotCompleted
+			index = index+1
+		end
+	end
+	self.temp.reward_job_index = nil
+	self.data.after_rewards_function()
+end
+
+--- Meant to be called as part of a job reward callback, in all ground maps where there are job boards.
+--- Gives the player the rewards of a job. You may include a speaker and up to two dialogue lines to display as part of the routine.
+--- This does not remove the job from the player. Another part of the job reward routine handles that already.
+--- If the library is configured to award rank points, this function will also handle ranking up, and return the reached ranks if it happened.
+---@param job jobTable the job to give the reward of
+---@param speaker any|nil a GroundChar to use as speaker for the lines below. If nil, the lines will have no speaker.
+---@param line1? string the line to use for the first reward. Unused if the reward is the client itself. Must be already formatted.
+---@param line2? string the line to use for the second reward. Unused if there is no second reward. Must be already formatted.
+---@return string[] #a list of ranks reached. If no rank-ups happened, the list will be empty
+function library:RewardPlayer(job, speaker, line1, line2)
+    local difficulty_data = self.data.difficulty_data[self.data.num_to_difficulty[job.Difficulty]]
+    if job.RewardType == "client" then
+        GAME:WaitFrames(20)
+    	self:AwardChar(job, speaker)
+        GAME:WaitFrames(20)
+    else
+        if line1 then
+            GAME:WaitFrames(20)
+            UI:SetSpeaker(speaker)
+            UI:WaitShowDialogue(line1)
+        end
+
+        --reward the item or money sum
+        GAME:WaitFrames(20)
+        if globals.reward_types[job.RewardType][1] then
+            self:AwardItem(job.Reward1)
+        else
+            self:AwardMoney(difficulty_data.money_reward)
+        end
+        GAME:WaitFrames(20)
+
+        if globals.reward_types[job.RewardType][2] then
+            if line2 then
+                UI:SetSpeaker(speaker)
+                UI:WaitShowDialogue(line2)
+        		GAME:WaitFrames(20)
+            end
+            self:AwardItem(job.Reward2)
+            GAME:WaitFrames(20)
+        end
+    end
+    local ranks = self:AwardExtra(difficulty_data.extra_reward)
+    GAME:WaitFrames(20)
+    return ranks
+end
+
+--- Offers the player a Character as reward. The character will be at the level it would've been if spawned now as a guest.
+--- The player can refuse the new team member if the so choose.
+---@param job jobTable the job to source the character from
+---@param char Character the character that will be used as speaker for the cutscene
+---@param talk? boolean if true, there will be a dialogue line before the prompt. If false, there won't be. Defaults to true.
+---@return boolean true if the player accepted the new team member, false otherwise
+function library:AwardChar(job, char, talk)
+    if talk == true or talk == nil then
+        UI:SetSpeaker(char)
+        UI:WaitShowDialogue(STRINGS:Format(RogueEssence.StringKey(globals.keysEx.CUTSCENE_AWARD_CHAR):ToLocal(), GAME:GetTeamName()))
+    end
+    UI:ChoiceMenuYesNo( STRINGS:Format(RogueEssence.StringKey(globals.keysEx.CUTSCENE_AWARD_CHAR_PROMPT):ToLocal(), GAME:GetTeamName()), true)
+    UI:WaitForChoice()
+    if UI:ChoiceResult() then
+        local zone_summary = _DATA.DataIndices[RogueEssence.Data.DataManager.DataType.Zone]:Get(job.Zone)
+
+        -- calculate party-related level parameters
+        local party_tot, party_avg, party_hst, party_count = 0, 0, 0, _DATA.Save.ActiveTeam.Players.Count
+        for i = 0, party_count - 1, 1 do
+            local char_lvl = _DATA.Save.ActiveTeam.Players[i].Level
+            party_tot = party_tot + char_lvl
+            party_hst = math.max(char_lvl, party_hst)
+        end
+        party_avg = party_tot // party_count
+
+        local nickname = job.Client.Nickname or ""
+        local mId = self:TableToMonsterID(job.Client)
+        local diff = self.data.num_to_difficulty[job.Difficulty]
+        local level = self.data.difficulty_data[diff].escort_level
+        local dungeon_default = not level
+        if dungeon_default then level = zone_summary.Level end
+        level = self.data.guest_level_scaling(level, dungeon_default, party_avg, party_hst, self.data)
+
+        local new_mob = _DATA.Save.ActiveTeam:CreatePlayer(_DATA.Save.Rand, mId, level, "", -1)
+        new_mob.Nickname = nickname
+        _DATA.Save.ActiveTeam.Assembly:Add(new_mob)
+
+        UI:ResetSpeaker(false) --disable text noise
+        UI:SetCenter(true)
+        UI:WaitShowDialogue(STRINGS:Format(RogueEssence.StringKey("MSG_RECRUIT"):ToLocal(),
+            self:GetCharacterName(job.Client), GAME:GetTeamName()))
+        UI:SetCenter(false)
+        UI:ResetSpeaker()
+        return true
+    end
+    return false
+end
+
+--- Gives the player a sum of money as reward.
+---@param amount integer the sum of money that will be given
+function library:AwardMoney(amount)
+	if amount <= 0 then return end
+    UI:ResetSpeaker(false)--disable text noise
+    UI:SetCenter(true)
+    SOUND:PlayFanfare("Fanfare/Item")
+    UI:WaitShowDialogue(STRINGS:Format(RogueEssence.StringKey(globals.keysEx.CUTSCENE_AWARD_MONEY):ToLocal(), GAME:GetTeamName(), STRINGS:FormatKey("MONEY_AMOUNT", amount)))
+	GAME:AddToPlayerMoney(amount)
+    UI:SetCenter(false)
+    UI:ResetSpeaker()
+end
+
+--- Gives the player an InvItem as reward.
+---@param itemTable itemTable the item to give. If its count is nil, it will default to the item's max stack
+function library:AwardItem(itemTable)
+    UI:ResetSpeaker(false) --disable text noise
+    UI:SetCenter(true)
+
+    local itemEntry = RogueEssence.Data.DataManager.Instance:GetItem(itemTable.id)
+
+    --give at least 1 item
+    if not itemTable.count then
+        if itemEntry.MaxStack > 1 then
+            itemTable.count = itemEntry.MaxStack
+        else
+            itemTable.count = 1
+        end
+    end
+	itemTable.count = math.min(itemTable.count, itemEntry.MaxStack)
+
+    local item = RogueEssence.Dungeon.InvItem(itemTable.id, false, itemTable.count)
+    if itemTable.hidden then item.HiddenValue = itemTable.hidden end
+
+    SOUND:PlayFanfare("Fanfare/Item")
+    UI:WaitShowDialogue(STRINGS:Format(RogueEssence.StringKey(globals.keysEx.CUTSCENE_AWARD_ITEM):ToLocal(), GAME:GetTeamName(), item:GetDisplayName()))
+
+    --bag is full - equipped count is separate from bag and must be included in the calc
+    if GAME:GetPlayerBagCount() + GAME:GetPlayerEquippedCount() >= GAME:GetPlayerBagLimit() then
+        UI:WaitShowDialogue(STRINGS:Format(RogueEssence.StringKey(globals.keysEx.CUTSCENE_AWARD_ITEM_STORAGE):ToLocal(), GAME:GetTeamName(), item:GetDisplayName()))
+        GAME:GivePlayerStorageItem(item.ID, itemTable.count)
+    else
+        GAME:GivePlayerItem(item.ID, itemTable.count)
+    end
+    UI:SetCenter(false)
+    UI:ResetSpeaker()
+end
+
+--- Gives the player the job's extra reward. If the extra reward is set to "rank", then it will also rank the player team up and return the list of ranks reached.
+---@param amount integer the amount of extra reward that will be given
+---@return string[] #a list of ranks reached. If no rank-ups happened, the list will be empty
+function library:AwardExtra(amount)
+	local ranks_reached = {}
+    if amount <= 0 then return ranks_reached end
+    UI:ResetSpeaker(false) --disable text noise
+    UI:SetCenter(true)
+    SOUND:PlayFanfare("Fanfare/Item")
+    local reward_string = "[color=#00FFFF]" .. amount .. "[color]"
+    if self.data.extra_reward_type == "exp" then
+        --Reward EXP for your party
+        UI:WaitShowDialogue(STRINGS:Format(RogueEssence.StringKey(globals.keysEx.CUTSCENE_AWARD_EXTRA):ToLocal(), GAME:GetTeamName(), reward_string))
+        local player_count = _DATA.Save.ActiveTeam.Players.Count
+        for player_idx = 0, player_count - 1, 1 do
+            TASK:WaitTask(GROUND:_HandoutEXP(_DATA.Save.ActiveTeam.Players[player_idx], amount))
+        end
+    elseif self.data.extra_reward_type == "rank" then
+        UI:WaitShowDialogue(STRINGS:Format(RogueEssence.StringKey(globals.keysEx.CUTSCENE_AWARD_EXTRA):ToLocal(), GAME:GetTeamName(), reward_string))
+
+        --check if a rank up is needed
+        local start_rank = _DATA.Save.ActiveTeam.Rank
+        local current_rank = start_rank
+        local end_rank = start_rank
+        local rankdata = _DATA:GetRank(current_rank)
+        local to_go = rankdata.FameToNext - _DATA.Save.ActiveTeam.Fame
+        --rank up if there's another rank to go. FameToNext will be 0 or -1 if there's no more ranks after.
+        while amount >= to_go and rankdata.FameToNext > 0 do
+            end_rank = rankdata.Next
+            amount = amount - to_go
+            if end_rank.FameToNext <= 0 then amount = 0 end
+            --reset fame, go to next rank
+            _DATA.Save.ActiveTeam:SetRank(end_rank)
+            _DATA.Save.ActiveTeam.Fame = 0
+
+            current_rank = end_rank
+            rankdata = _DATA:GetRank(current_rank)
+			table.insert(ranks_reached, current_rank)
+            _DATA.Save.ActiveTeam.Fame = _DATA.Save.ActiveTeam.Fame + amount
+        end
+        SOUND:PlayFanfare("Fanfare/RankUp")
+        UI:ResetSpeaker()
+        UI:SetCenter(true)
+
+        UI:WaitShowDialogue(STRINGS:Format(RogueEssence.StringKey(globals.keysEx.CUTSCENE_AWARD_RANK_UP):ToLocal(), GAME:GetTeamName(), _DATA:GetRank(start_rank).Name:ToLocal(), _DATA:GetRank(end_rank).Name:ToLocal()))
+    end
+    UI:SetCenter(false)
+    UI:ResetSpeaker()
+    GAME:WaitFrames(20)
+	return ranks_reached
+end
+
+-- TODO this will instead be a service just like in Dungeon Recruitment List
+function library:EndOfDay(result, segmentID)
+    --Mark the current dungeon as visited
+    local cur_zone_name = _ZONE.CurrentZoneID
+
+    if result == RogueEssence.Data.GameProgress.ResultType.Cleared then
+        PrintInfo("Completed zone "..cur_zone_name.." with segment "..segmentID)
+        if SV.MissionPrereq.DungeonsCompleted[cur_zone_name] == nil then
+            SV.MissionPrereq.DungeonsCompleted[cur_zone_name] = { }
+            SV.MissionPrereq.DungeonsCompleted[cur_zone_name][segmentID] = 1
+            SV.MissionPrereq.NumDungeonsCompleted = SV.MissionPrereq.NumDungeonsCompleted + 1
+        elseif SV.MissionPrereq.DungeonsCompleted[cur_zone_name][segmentID] == nil then
+            SV.MissionPrereq.DungeonsCompleted[cur_zone_name][segmentID] = 1
+        end
+    end
+end
 -- ----------------------------------------------------------------------------------------- --
 -- #region BATTLE_SCRIPT support
 -- ----------------------------------------------------------------------------------------- --
@@ -2580,7 +2984,7 @@ function library:GenerateJobInFloor(zoneContext, _, queue, _, _)
     self.root.mission_flags.MonsterHouseMessageNotified = false
     self.root.mission_flags.OutlawItemState = 0
     self.root.mission_flags.OutlawDefeated = false
-    self.root.mission_flags.OutlawItemPickedUp = false
+    self.root.mission_flags.ItemPickedUp = false
 
     local job = nil
     local jobIndex = nil
@@ -2896,7 +3300,7 @@ function library:OutlawFloor(owner, ownerChar, context, args)
             SOUND:PlayBGM(self.data.outlaw_music_name, true, 20)
             UI:ResetSpeaker()
             DUNGEON:CharTurnToChar(outlaw, GAME:GetPlayerPartyMember(0))
-            COMMON.TeamTurnTo(outlaw)
+            self:TeamTurnTo(outlaw)
             if globals.job_types[job.Type].boss then
                 UI:WaitShowDialogue(STRINGS:Format(RogueEssence.StringKey(globals.keysEx.OUTLAW_REACHED):ToLocal()))
             end
@@ -2993,8 +3397,8 @@ end
 --- Meant to be called in ``SINGLE_CHAR_SCRIPT.OutlawDeathCheck``. It implements the entire OutlawDeathCheck event used by the library.
 --- It is called whenever a pokémon faints. If the pokémon is an outlaw, then this information will be saved for future handling.
 --- Please pass all of the event's parameters to this function, in order.
-function library:OutlawDeathCheck(_, _, context, args)
-	local subject, jobIndex = context.User, args.JobReference
+function library:OutlawDeathCheck(_, _, context, _)
+	local subject = context.User
     if subject.LuaData and subject.LuaData.OutlawReference then
         self.root.mission_flags.OutlawDefeated = true
     end
@@ -3126,22 +3530,22 @@ end
 --- If it is, then this information will be saved for future handling.
 --- Please pass all of the event's parameters to this function, in order.
 function library:OutlawItemCheckItem(_, _, _, args)
-    if not self.root.mission_flags.OutlawItemPickedUp then
+    if not self.root.mission_flags.ItemPickedUp then
         local jobIndex = args.JobReference
         local job = self.root.taken[jobIndex]
 
         for i = 0, GAME:GetPlayerBagCount(), 1 do
             local invItem = GAME:GetPlayerBagItem(i)
             if invItem.ID == job.Item and invItem.HiddenValue == tostring(jobIndex) then
-                self.root.mission_flags.OutlawItemPickedUp = true
+                self.root.mission_flags.ItemPickedUp = true
                 break
             end
         end
-		if not self.root.mission_flags.OutlawItemPickedUp then
+		if not self.root.mission_flags.ItemPickedUp then
 			for i = 0, GAME:GetPlayerPartyCount(), 1 do
 				local equipItem = GAME:GetPlayerEquippedItem(i)
 				if equipItem and equipItem.ID == job.Item and equipItem.HiddenValue == tostring(jobIndex) then
-					self.root.mission_flags.OutlawItemPickedUp = true
+					self.root.mission_flags.ItemPickedUp = true
 					break
 				end
 			end
@@ -3184,7 +3588,7 @@ function library:OutlawItemCheck(_, _, _, args)
                 else
                     SOUND:PlayBGM(_ZONE.CurrentMap.Music, true)
                 end
-            elseif self.root.mission_flags.OutlawItemPickedUp then
+            elseif self.root.mission_flags.ItemPickedUp then
                 self.root.mission_flags.OutlawItemState = 2
                 if job.Type "OUTLAW_ITEM_UNK" then
                     GAME:WaitFrames(50)
@@ -3197,7 +3601,7 @@ function library:OutlawItemCheck(_, _, _, args)
                 end
             end
         end
-        if self.root.mission_flags.OutlawItemState == 1 and self.root.mission_flags.OutlawItemPickedUp then     --outlaw already defeated, item taken now
+        if self.root.mission_flags.OutlawItemState == 1 and self.root.mission_flags.ItemPickedUp then     --outlaw already defeated, item taken now
             complete_job(globals.keysEx.OUTLAW_ITEM_RETRIEVED)
         elseif self.root.mission_flags.OutlawItemState == 2 and self.root.mission_flags.OutlawDefeated then     --item already taken, outlaw defeated now
             complete_job(globals.keysEx.OUTLAW_DEFEATED)
@@ -3258,11 +3662,12 @@ function library:ExplorationReached(_, _, context, args)
 end
 
 function library:MissionItemCheck(_, _, context, args)
-    if not self.root.mission_flags.MissionCompleted then
+    if not self.root.mission_flags.ItemPickedUp then
         local jobIndex = args.JobReference
         local job = self.root.taken[jobIndex]
         local itemFound = function()
             job.Completion = globals.completion.Completed
+            self.root.mission_flags.ItemPickedUp = true
             self.root.mission_flags.MissionCompleted = true
             GAME:WaitFrames(70)
             UI:ResetSpeaker()
@@ -3283,7 +3688,7 @@ function library:MissionItemCheck(_, _, context, args)
                 break
             end
         end
-        if not self.root.mission_flags.MissionCompleted then
+        if not self.root.mission_flags.ItemPickedUp then
             for i = 0, GAME:GetPlayerPartyCount(), 1 do
                 local equipItem = GAME:GetPlayerEquippedItem(i)
                 if equipItem and equipItem.ID == job.Item and equipItem.HiddenValue == tostring(jobIndex) then

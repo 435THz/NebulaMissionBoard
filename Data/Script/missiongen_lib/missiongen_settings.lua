@@ -9,8 +9,7 @@
 
 --- @alias jobType "RESCUE_SELF"|"RESCUE_FRIEND"|"ESCORT"|"EXPLORATION"|"DELIVERY"|"LOST_ITEM"|"OUTLAW"|"OUTLAW_ITEM"|"OUTLAW_ITEM_UNK"|"OUTLAW_MONSTER_HOUSE"|"OUTLAW_FLEE"
 --- @alias emotionType "Normal"|"Happy"|"Pain"|"Angry"|"Worried"|"Sad"|"Crying"|"Shouting"|"Teary-Eyed"|"Determined"|"Joyous"|"Inspired"|"Surprised"|"Dizzy"|"Special0"|"Special1"|"Sigh"|"Stunned"|"Special2"|"Special3"
---- @alias OfficerIDTable {species:string, form:integer|nil, skin:string|nil, gender:integer}
---- @alias AgentIDTable {species:string, form:integer|nil, skin:string|nil, gender:integer, weight:integer|nil, unique:boolean|nil}
+--- @alias AgentIDTable {Species:string, Form:integer|nil, Skin:string|nil, Gender:integer, Weight:integer|nil, Unique:boolean|nil}
 --- @alias Character any RogueEssence.Dungeon.Character
 --- @alias MonsterTeam any RogueEssence.Dungeon.MonsterTeam
 
@@ -24,17 +23,19 @@ local settings = {
     ---@type string|string[]
     sv_root_name = "jobs",
     --- A list of board ids and the data necessary to define their behavior.
-    --- Format: <board_id> = {display_key = string, size = integer, condition = function, job_types = {{id = string, weight = integer}}}
+    --- Format: <board_id> = {display_key = string, size = integer, location = {zone = string, map = integer, pos = {X = integer, Y = integer}}, condition = function, job_types = {{id = string, weight = integer}}}
     --- * <board_id>: you can use any string in place of this. It will be used to identify the board in scripts
     --- * display_key: the string key used when displaying the job menu for this board.  The localized strings are fetched from the Menu Text list (strings.resx)
     --- * size: the amount of quests this board can hold at a time
     --- * job_types: a list of job types and their probability weight. Higher weight means more common.
+    --- * location: a zone id, a map index and the board's X and Y coordinates. These coordinates will be used as the center point for the "client" area of the job completion cutscene. All of these maps must call library:PlayJobsCompletedCutscene before fade-in for the reward sequence to work correctly.
     --- * condition: Optional. A function called to determine if library:PopulateBoards() should fill out this board. It receives the library object as an argument and returns a boolean. If it returns true, the board is filled out. If it returns false, it isn't. If this property is missing, this board will always be active.
-    ---@type table<string, {display_key:string, size:integer, condition:fun(library:table):(boolean)|nil, job_types:{id:string, weight:integer}[]}>
+    ---@type table<string, {display_key:string, size:integer, condition:fun(library:table):(boolean)|nil, location:{zone:string, map:integer}, job_types:{id:string, weight:integer}[]}>
     boards = {
         quest_board = {
             display_key = "BOARD_QUEST_TITLE",
             size = 8,
+			location = {zone = "guildmaster_island", map = 2},
             condition = function (library)
                 ---@type LibraryRootStruct
                 local root = library.root
@@ -65,6 +66,17 @@ local settings = {
             }
         }
     },
+    --- Zone and map id of the ground map where players will be sent to when a day ends. This map must contain a call to library:PlayJobsCompletedCutscene
+    --- Format: {zone = string, map = integer}
+    ---@type {zone:string, map:integer}
+    end_dungeon_day_destination = { zone = "guildmaster_island", map = 2 },
+    --- Function ran after the game is done with the job completed cutscene.
+    --- You can use this to fix up the game state however you like before returning control to the player.
+    ---@type fun()
+    after_rewards_function = function()
+  		GAME:MoveCamera(0, 0, 1, true)
+  		SOUND:PlayBGM(SV.base_town.Song, true)
+    end,
     --- The maximum number of jobs that can be taken from job boards at a time
     ---@type integer
     taken_limit = 8,
@@ -150,9 +162,6 @@ local settings = {
         if avg_team_lvl > lvl then add = (avg_team_lvl - lvl) // 10 end -- add 10% of the level difference between guest and average
         return lvl + add
     end,
-    --- The name of the outlaw music file. This file will be sourced from the Content/Music folder.
-    ---@type string
-    outlaw_music_name = "Outlaw.ogg",
     --- Function that changes the level of outlaws based on the player's level. It must return the new level for the outlaw, or it will have no effect.
     --- * lvl: base level of the outlaw.
     --- * dungeon: if true, the level is the dungeon's recommended level. If false, it's taken from the difficulty data.
@@ -184,6 +193,9 @@ local settings = {
     --- A list of ids for types that are banned from ever being picked as fleeing outlaws.
     ---@type string[]
     fleeing_outlaw_restrictions = {"ghost"},
+    --- The name of the outlaw music file. This file will be sourced from the Content/Music folder.
+    ---@type string
+    outlaw_music_name = "Outlaw.ogg",
     --- This is where dungeon difficulty is set. Quests can only generate for dungeons inside this list.
     --- Given the complexity of this structure, it is best generated using the "AddDungeonSection" function near the bottom of this file.
     ---@type table<string, table<integer, {max_floor:integer, must_end:boolean, sections:{start:integer, difficulty:string}}>>
@@ -270,7 +282,7 @@ local settings = {
         {id = "exclusive", weight = 1, min_rank = "STAR_4"}   -- appears as ???. Award a 1* xcl item of client, or of target if outlaw mission.
     },
     --- The type of extra reward for all quests. It can be "none", "rank" or "exp". Any other value will result in "none"
-    ---@type string
+    ---@type "none"|"rank"|"exp"
     extra_reward_type = "exp",
     --- Use this to assign different weights to reward pools depending on the difficulty rank of the mission.
     --- <diff_id> = {{id = pool_id, weight = integer}}
@@ -841,23 +853,23 @@ local settings = {
             {id = "food_apple", weight = 5},
             {id = "orb_escape", weight = 5},
             {id = "apricorn_plain", weight = 5},
-            {id = "key", weight = 2}
+            {id = "key",count = 3,  weight = 2}
         },
         AMMO_LOW = {
-            {id = "ammo_iron_thorn", weight = 5},
-            {id = "ammo_geo_pebble", weight = 1},
-            {id = "ammo_stick", weight = 1},
+            {id = "ammo_iron_thorn", count = 3, weight = 5},
+            {id = "ammo_geo_pebble", count = 3, weight = 1},
+            {id = "ammo_stick", count = 3, weight = 1},
         },
         AMMO_MID = {
-            {id = "ammo_geo_pebble", weight = 5},
-            {id = "ammo_gravelerock", weight = 5},
-            {id = "ammo_stick", weight = 5},
-            {id = "ammo_silver_spike", weight = 5}
+            {id = "ammo_geo_pebble", count = 3, weight = 5},
+            {id = "ammo_gravelerock", count = 3, weight = 5},
+            {id = "ammo_stick", count = 3, weight = 5},
+            {id = "ammo_silver_spike", count = 3, weight = 5}
         },
         AMMO_HIGH = {
-            {id = "ammo_rare_fossil", weight = 5},
-            {id = "ammo_corsola_twig", weight = 5},
-            {id = "ammo_cacnea_spike", weight = 5}
+            {id = "ammo_rare_fossil", count = 3, weight = 5},
+            {id = "ammo_corsola_twig", count = 3, weight = 5},
+            {id = "ammo_cacnea_spike", count = 3, weight = 5}
         },
         APRICORN_GENERIC = {
             {id = "apricorn_plain", weight = 12},
@@ -1094,16 +1106,16 @@ local settings = {
         },
         --Spawns boxes, keys, heart scales, and loot
         LOOT_LOW = {
-            {id = "loot_heart_scale", weight = 5},
-            {id = "loot_pearl", weight = 10},
+            {id = "loot_heart_scale", count = 3, weight = 5},
+            {id = "loot_pearl", count = 3, weight = 10},
             {id = "machine_assembly_box", weight = 10},
-            {id = "key", weight = 10}
+            {id = "key", count = 3, weight = 10}
         },
         LOOT_HIGH = {
-            {id = "loot_heart_scale", weight = 20},
+            {id = "loot_heart_scale", count = 3, weight = 20},
             {id = "loot_nugget", weight = 5},
             {id = "machine_recall_box", weight = 10},
-            {id = "machine_storage_box", weight = 10}
+            {id = "machine_storage_box", count = 3, weight = 10}
         },
         EVO_ITEMS = {
             {id = "evo_link_cable", weight = 30},
@@ -1176,24 +1188,24 @@ local settings = {
             {id = "orb_one_room", weight = 5},
         },
         WANDS_LOW = {
-            {id = "wand_pounce", weight = 5},
-            {id = "wand_slow", weight = 5},
-            {id = "wand_topsy_turvy", weight = 5},
-            {id = "wand_purge", weight = 5}
+            {id = "wand_pounce", count = 3, weight = 5},
+            {id = "wand_slow", count = 3, weight = 5},
+            {id = "wand_topsy_turvy", count = 3, weight = 5},
+            {id = "wand_purge", count = 3, weight = 5}
         },
         WANDS_MID = {
-            {id = "wand_path", weight = 5},
-            {id = "wand_whirlwind", weight = 5},
-            {id = "wand_switcher", weight = 5},
-            {id = "wand_fear", weight = 5},
-            {id = "wand_warp", weight = 5},
-            {id = "wand_lob", weight = 5}
+            {id = "wand_path", count = 3, weight = 5},
+            {id = "wand_whirlwind", count = 3, weight = 5},
+            {id = "wand_switcher", count = 3, weight = 5},
+            {id = "wand_fear", count = 3, weight = 5},
+            {id = "wand_warp", count = 3, weight = 5},
+            {id = "wand_lob", count = 3, weight = 5}
         },
         WANDS_HIGH = {
-            {id = "wand_lure", weight = 5},
-            {id = "wand_stayaway", weight = 5},
-            {id = "wand_transfer", weight = 5},
-            {id = "wand_vanish", weight = 5}
+            {id = "wand_lure", count = 3, weight = 5},
+            {id = "wand_stayaway", count = 3, weight = 5},
+            {id = "wand_transfer", count = 3, weight = 5},
+            {id = "wand_vanish", count = 3, weight = 5}
         },
         TM_LOW = {
             {id = "tm_snatch", weight = 5},
@@ -1327,9 +1339,9 @@ local settings = {
         },
         --special and unique rewards, very rare
         SPECIAL = {
-            {id = "medicine_amber_tear", weight = 1},
-            {id = "machine_ability_capsule", weight = 1},
-            {id = "ammo_golden_thorn", weight = 1},
+            {id = "medicine_amber_tear", count = 3, weight = 1},
+            {id = "machine_ability_capsule", count = 3, weight = 1},
+            {id = "ammo_golden_thorn", count = 3, weight = 1},
             {id = "food_apple_golden", weight = 1},
             {id = "seed_golden", weight = 1},
             {id = "evo_harmony_scarf", weight = 1},
@@ -1873,12 +1885,12 @@ local settings = {
     --- Officer format: OFFICER = MonsterIDTable
     --- Agent format: AGENT = {MonsterIDTable}
     --- Format of MonsterIDTable: see the "monsterIdTemplate" function in missiongen_lib.lua
-    ---@type {OFFICER:OfficerIDTable, AGENT:AgentIDTable[]}
+    ---@type {OFFICER:monsterIDTable, AGENT:AgentIDTable[]}
     law_enforcement = {
-        OFFICER = {species = "magnezone", gender = 0},
+        OFFICER = {Species = "magnezone", Gender = 0},
         AGENT = {
-            {species = "magnemite", gender = 0, weight = 31},
-            {species = "magnemite", gender = 0, weight = 1, unique = true}
+            {Species = "magnemite", Gender = 0, Weight = 31},
+            {Species = "magnemite", Gender = 0, Weight = 1, Unique = true}
         }
     },
     --- Defines the chance of either the officer or an agent being the client of a mission depending on
@@ -2055,7 +2067,6 @@ local settings = {
 			"MISSION_EXPLORATION_INTERACT"
     	}
     },
-
     --- Strings keys to be used whenever the player interacts with a pokémon that needs rescue, depending on the job type and the response given.
     --- You must include a "_DEFAULT" table, but you can also include tables for special job types. _DEFAULT will still be used for any special
     --- case that doesn't have a table associated with it.
@@ -2148,7 +2159,7 @@ AddDungeonSection("fertile_valley", 1, 1, "C", 5)
 AddDungeonSection("copper_quarry", 0, 7, "C", 11)
 AddDungeonSection("copper_quarry", 0, 1, "B", 4)
 AddDungeonSection("depleted_basin", 0, 5, "C", 9)
-AddDungeonSection("forsaken_desert", 0, 2, "A", 4)
+AddDungeonSection("forsaken_desert", 0, 2, "S", 4)
 AddDungeonSection("relic_tower", 0, 8, "S", 13)
 AddDungeonSection("relic_tower", 0, 11, "STAR1")
 AddDungeonSection("sleeping_caldera", 0, 10, "B", 18)
