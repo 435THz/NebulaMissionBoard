@@ -1122,8 +1122,8 @@
     <value>I'm counting on you to bring me to {0}!</value>
     <comment></comment>  </data>
   <data name="MISSION_ESCORT_REPLACE" xml:space="preserve">
-    <value>Have one of your team members leave the dungeon to make room for your client, {0}.</value>
-    <comment></comment>  </data> TODO
+    <value>Have one of your team members leave the dungeon to make room for your client, {0}.</value> TODO
+    <comment></comment>  </data>
   <data name="MISSION_ESCORT_REPLACE_ASK" xml:space="preserve">
     <value>Have {0} leave the dungeon?</value> TODO
     <comment></comment>  </data>

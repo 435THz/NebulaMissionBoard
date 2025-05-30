@@ -242,15 +242,11 @@
   </data>
   <data name="MENU_OPTION_JOBLIST" xml:space="preserve">
     <value>Job List</value>
-    <comment>TODO</comment>
+    <comment></comment>
   </data>
   <data name="MENU_OPTION_OBJECTIVES_LIST" xml:space="preserve">
     <value>Mission Objectives</value>
-    <comment>TODO</comment>
-  </data>
-  <data name="MISSION_EXP_DESCRIPTION" xml:space="preserve">
-    <value>{0} Exp. Point Reward</value>
-    <comment>TODO For labeling an Experience point reward</comment>
+    <comment></comment>
   </data>
   <data name="RANK_STRING_F" xml:space="preserve">
     <value>[color=#A1A1A1]F[color]</value>

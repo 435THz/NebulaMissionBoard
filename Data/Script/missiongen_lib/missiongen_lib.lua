@@ -2558,8 +2558,18 @@ end
 --- Removes all target items from the inventory and requests a board update.
 --- Its return value should itself be returned by COMMON.ExitDungeonMissionCheckEx
 --- Please pass all of the function's parameters to this one, in order.
-function library:ExitDungeonMissionCheckEx(result, _, _, _)
+function library:ExitDungeonMissionCheckEx(result, _, zone, segment)
+    --reset the escort status
     _DATA.Save.ActiveTeam.Guests:Clear()
+    if self.data.guests_take_up_space then
+        RogueEssence.Dungeon.ExplorerTeam.MAX_TEAM_SLOTS = self.root.previous_limit
+        self.root.escort_jobs = 0
+    end
+
+    if result == RogueEssence.Data.GameProgress.ResultType.Cleared then
+        MissionGen.root.dungeon_progress[zone] = MissionGen.root.dungeon_progress[zone] or {}
+        MissionGen.root.dungeon_progress[zone][segment] = true
+    end
 
     --Remove any lost/stolen items. If the item contains a numerical HiddenValue and that number
     --corresponds to a job_index containing its id then delete it on exiting the dungeon.
@@ -2828,22 +2838,6 @@ function library:AwardExtra(amount)
 	return ranks_reached
 end
 
--- TODO this will instead be a service just like in Dungeon Recruitment List
-function library:EndOfDay(result, segmentID)
-    --Mark the current dungeon as visited
-    local cur_zone_name = _ZONE.CurrentZoneID
-
-    if result == RogueEssence.Data.GameProgress.ResultType.Cleared then
-        PrintInfo("Completed zone "..cur_zone_name.." with segment "..segmentID)
-        if SV.MissionPrereq.DungeonsCompleted[cur_zone_name] == nil then
-            SV.MissionPrereq.DungeonsCompleted[cur_zone_name] = { }
-            SV.MissionPrereq.DungeonsCompleted[cur_zone_name][segmentID] = 1
-            SV.MissionPrereq.NumDungeonsCompleted = SV.MissionPrereq.NumDungeonsCompleted + 1
-        elseif SV.MissionPrereq.DungeonsCompleted[cur_zone_name][segmentID] == nil then
-            SV.MissionPrereq.DungeonsCompleted[cur_zone_name][segmentID] = 1
-        end
-    end
-end
 -- ----------------------------------------------------------------------------------------- --
 -- #region BATTLE_SCRIPT support
 -- ----------------------------------------------------------------------------------------- --
@@ -3744,5 +3738,4 @@ end
 
 
 library.globals = globals
-library:load() --TODO migrate load routine to OnSaveLoad
 return library

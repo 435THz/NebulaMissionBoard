@@ -2,22 +2,42 @@
 require 'origin.services.baseservice'
 
 
-local MissionMenuTools = Class('MissionMenuTools', BaseService)
+local MissionTools = Class('MissionTools', BaseService)
 
 --[[---------------------------------------------------------------
-    MissionMenuTools:initialize()
-      MissionMenuTools class constructor
+    MissionTools:initialize()
+      MissionTools class constructor
 ---------------------------------------------------------------]]
-function MissionMenuTools:initialize()
+function MissionTools:initialize()
   BaseService.initialize(self)
-  PrintInfo('MissionMenuTools:initialize()')
+  PrintInfo('MissionTools:initialize()')
 end
 
 --[[---------------------------------------------------------------
-    MenuTools:OnAddMenu(menu)
+    MissionTools:OnSaveLoad()
+      Called when a save is loaded or created for the first time.
+---------------------------------------------------------------]]
+function MissionTools:OnSaveLoad()
+	MissionGen:load()
+end
+
+--[[---------------------------------------------------------------
+    RecruitTools:OnDungeonFloorEnd()
+      When leaving a dungeon floor this is called.
+---------------------------------------------------------------]]
+function MissionTools:OnDungeonFloorEnd(_, _)
+    assert(self, 'MissionTools:OnDungeonFloorEnd() : self is null!')
+    local zone, segment = _ZONE.CurrentZoneID, _ZONE.CurrentMapID.Segment
+    --Mark the current dungeon as visited
+    MissionGen.root.dungeon_progress[zone] = MissionGen.root.dungeon_progress[zone] or {}
+    MissionGen.root.dungeon_progress[zone][segment] = MissionGen.root.dungeon_progress[zone][segment] or false
+end
+
+--[[---------------------------------------------------------------
+    MissionTools:OnAddMenu(menu)
       When a menu is about to be added to the menu stack this is called!
 ---------------------------------------------------------------]]
-function MissionMenuTools:OnAddMenu(menu)
+function MissionTools:OnAddMenu(menu)
     local labels = RogueEssence.Menu.MenuLabel
     if SV.MissionsEnabled and menu:HasLabel() then
         if RogueEssence.GameManager.Instance.CurrentScene == RogueEssence.Dungeon.DungeonScene.Instance then
@@ -53,16 +73,18 @@ end
 
 ---Summary
 -- Subscribe to all channels this service wants callbacks from
-function MissionMenuTools:Subscribe(med)
-  med:Subscribe("MissionMenuTools", EngineServiceEvents.AddMenu, function(_, args) self.OnAddMenu(self, args[0]) end )
+function MissionTools:Subscribe(med)
+  med:Subscribe("MissionTools", EngineServiceEvents.NewGame, function(_, _) self.OnSaveLoad(self) end )
+  med:Subscribe("MissionTools", EngineServiceEvents.LoadSavedData, function(_, _) self.OnSaveLoad(self) end )
+  med:Subscribe("MissionTools", EngineServiceEvents.AddMenu, function(_, args) self.OnAddMenu(self, args[0]) end )
 end
 
 ---Summary
 -- un-subscribe to all channels this service subscribed to
-function MissionMenuTools:UnSubscribe(med)
+function MissionTools:UnSubscribe(med)
 end
 
 
 --Add our service
-SCRIPT:AddService("MissionMenuTools", MissionMenuTools:new())
-return MissionMenuTools
+SCRIPT:AddService("MissionTools", MissionTools:new())
+return MissionTools
