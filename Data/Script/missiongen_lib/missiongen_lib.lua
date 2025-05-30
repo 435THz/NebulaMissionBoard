@@ -1251,7 +1251,7 @@ end
 function library:IsTakenListEmpty() return #self.root.taken<=0 end
 
 --- Checks if the player's taken job list is full or not
---- @return boolean true if there are no more free job slots inside the taken list, false otherwise.
+--- @return boolean #true if there are no more free job slots inside the taken list, false otherwise.
 function library:IsTakenListFull() return #self.root.taken>=self.data.taken_limit end
 
 --- Checks if the given board has a job in the requested slot
@@ -1260,6 +1260,60 @@ function library:IsTakenListFull() return #self.root.taken>=self.data.taken_limi
 --- @return boolean #true if the job exists, false otherwise
 function library:BoardJobExists(board_id, index)
     return #self.root.boards[board_id] >= (index or 1)
+end
+
+--- Returns a job from a slot in a specific board.
+--- @param board_id string the id of the board to check
+--- @param index integer|nil The index of the job to fetch.
+--- @return jobTable #the data table of the job at that position, or nil if there is no job there.
+function library:GetBoardJob(board_id, index) return self.root.boards[board_id][index] end
+
+--- Returns a job from a slot in the taken list.
+--- @param index integer|nil The index of the job to fetch.
+--- @return jobTable #the data table of the job at that position, or nil if there is no job there.
+function library:GetTakenJob(board_id, index) return self.root.taken[index] end
+
+--- Checks if there are completed missions to hand in
+--- @return boolean #true if there are completed missions, false otherwise
+function library:HasCompletedMissions()
+    return self.root.mission_flags.MissionCompleted --[[@as boolean]] or false
+end
+
+--- Checks if the provided job type requires a target. A job whose jobtype requires a target always has its Target field filled in.
+--- @param jobType jobType a job type id string
+--- @return boolean #true if the job type requires a target, false otherwise
+function library:JobTypeHasTarget(jobType)
+	return globals.job_types[jobType].req_target
+end
+
+--- Checks if the provided job type requires a target item. A job whose jobtype requires a target item always has its Item field filled in.
+--- @param jobType jobType a job type id string
+--- @return boolean #true if the job type requires a target item, false otherwise
+function library:JobTypeHasTargetItem(jobType)
+	return globals.job_types[jobType].req_target_item
+end
+
+--- Checks if the provided job type is marked as a guest job. A guest job will have its Client joining the player as a guest.
+--- @param jobType jobType a job type id string
+--- @return boolean #true if the job type is marked as a guest job, false otherwise
+function library:JobTypeHasGuest(jobType)
+	return globals.job_types[jobType].has_guest
+end
+
+--- Checks if the provided job type is marked as an outlaw job. These job types always have a Target.
+--- A job whose jobtype is marked as an outlaw job will require the player to defeat its Target to be completed.
+--- @param jobType jobType a job type id string
+--- @return boolean #true if the job type is marked as an outlaw job, false otherwise
+function library:JobTypeIsOutlaw(jobType)
+	return globals.job_types[jobType].target_outlaw
+end
+
+--- Checks if the provided job type is marked as a law enforcement job. A job whose jobtype is marked as a law enforcement
+--- job will display the law enforcement characters when processing its job completion cutscene.
+--- @param jobType jobType a job type id string
+--- @return boolean #true if the job type requires is marked as a law enforcement job, false otherwise
+function library:JobTypeIsLawEnforcement(jobType)
+	return globals.job_types[jobType].law_enforcement
 end
 
 --- Checks if two jobs are equal. It compares location, job type, client and target data to do so.
@@ -2406,7 +2460,7 @@ end
 -- ----------------------------------------------------------------------------------------- --
 -- API specific for functions that are meant for common.lua or one of its child files
 
---- Meant to be called in COMMON.ShowDestinantonMenu
+--- Meant to be called in ``COMMON.ShowDestinantonMenu``
 --- Creates a reference table whose keys are all the zones with at least one job in them.
 ---@return referenceList
 function library:LoadJobDestinations()
@@ -2423,7 +2477,7 @@ function library:LoadJobDestinations()
     return mission_dests
 end
 
---- Meant to be called in COMMON.ShowDestinantonMenu
+--- Meant to be called in ``COMMON.ShowDestinantonMenu``
 --- Takes a zone name and its id and returns a name string that also contains any related job and event icons.
 --- @param mission_dests referenceList the set of job destinations
 --- @param zone_id string the zone id string to format the name of
@@ -2445,7 +2499,7 @@ function library:FormatDestinationMenuZoneName(mission_dests, zone_id, zone_name
     return STRINGS:Format(self.data.dungeon_list_pattern, zone_name, STRINGS:Format(mission_icon), STRINGS:Format(external_icons))
 end
 
---- Meant to be called in COMMON:EnterDungeonMissionCheck
+--- Meant to be called in ``COMMON:EnterDungeonMissionCheck``
 --- Prepares the list of guests to be spawned and reduces the team limit accordingly if missiongen_settings.guests_take_up_space is set.
 --- @param zone_id string the zone id string to prepare the guest data for
 --- @return jobTable[], string[] #the list of indexes for jobs that have guests and the list of removed ally names.
@@ -2484,7 +2538,7 @@ function library:EnterDungeonPrepareParty(zone_id)
 end
 
 
---- Meant to be called in COMMON.EnterDungeonMissionCheck
+--- Meant to be called in ``COMMON.EnterDungeonMissionCheck``
 --- Generates the clients of the provided jobs and adds them as guests.
 --- @param zone_id string the zone id string to generate the guests for
 --- @param escort_jobs jobTable[] the list of jobs to generate guests from
@@ -2526,7 +2580,7 @@ function library:EnterDungeonAddJobEscorts(zone_id, escort_jobs)
     return added_names
 end
 
---- Meant to be called in COMMON.EnterDungeonMissionCheck
+--- Meant to be called in ``COMMON.EnterDungeonMissionCheck``
 --- Prints a SENT_HOME message using the provided list of formatted character display names.
 --- @param removed_list string[] a list of character display names
 function library:PrintSentHome(removed_list)
@@ -2540,7 +2594,7 @@ function library:PrintSentHome(removed_list)
     end
 end
 
---- Meant to be called in COMMON.EnterDungeonMissionCheck
+--- Meant to be called in ``COMMON.EnterDungeonMissionCheck``
 --- Prints an ESCORT_ADD message using the provided list of formatted character display names.
 --- @param added_list string[] a list of character display names
 function library:PrintEscortAdd(added_list)
@@ -2554,7 +2608,7 @@ function library:PrintEscortAdd(added_list)
     end
 end
 
---- Meant to be called in COMMON.ExitDungeonMissionCheckEx
+--- Meant to be called in ``COMMON.ExitDungeonMissionCheckEx``
 --- Removes all target items from the inventory and requests a board update.
 --- Its return value should itself be returned by COMMON.ExitDungeonMissionCheckEx
 --- Please pass all of the function's parameters to this one, in order.
@@ -2624,9 +2678,9 @@ function library:PlayJobsCompletedCutscene(callback)
     local CurrentMap = _ZONE.CurrentMapID.ID
 
     while index <= #self.root.taken do
-	    local job = self.root.taken[index]
-		if job.Completion == globals.completion.Completed then
-			local dest = self.data.boards[job.BackReference --[[@as string]]].location
+        local job = self.root.taken[index]
+        if job.Completion == globals.completion.Completed then
+            local dest = self.data.boards[ job.BackReference --[[@as string]] ].location
             if CurrentZone ~= dest.zone or CurrentMap ~= dest.map then
                 self.temp.reward_job_index = index
                 GAME:EnterZone(dest.zone, -1, dest.map, 0)
@@ -2636,10 +2690,11 @@ function library:PlayJobsCompletedCutscene(callback)
             rewardCutscene(index, callback)
             self:RemoveTakenJob(index)
         else
-			job.Completion = globals.completion.NotCompleted
-			index = index+1
-		end
-	end
+            job.Completion = globals.completion.NotCompleted
+            index = index + 1
+        end
+    end
+	self.root.mission_flags.MissionCompleted = false
 	self.temp.reward_job_index = nil
 	self.data.after_rewards_function()
 end
@@ -3129,7 +3184,7 @@ end
 
 --- Meant to be called in ``SINGLE_CHAR_SCRIPT.SpawnOutlaw``. It implements the entire SpawnOutlaw event used by the library.
 --- It is called at the start of an outlaw job's destination floor. It scans for a spawn point for the outlaw, then generates
---- the character and adds it in that tile. It also handles stat changes and ai settings.
+--- the character and adds it in that tile.
 --- Please pass all of the event's parameters to this function, in order.
 function library:SpawnOutlaw(_, _, context, args)
   	if context.User ~= nil then
@@ -3655,6 +3710,10 @@ function library:ExplorationReached(_, _, context, args)
     end
 end
 
+--- Meant to be called in ``SINGLE_CHAR_SCRIPT.MissionItemCheck``. It implements the entire MissionItemCheck event used by the library.
+--- It is called on turn end during a LOST_ITEM job, and checks if item has been retrieved.
+--- When it is, this function will display a message, and then the player will be prompted to leave.
+--- Please pass all of the event's parameters to this function, in order.
 function library:MissionItemCheck(_, _, context, args)
     if not self.root.mission_flags.ItemPickedUp then
         local jobIndex = args.JobReference
@@ -3721,7 +3780,7 @@ end
 
 --- Meant to be called in ``SINGLE_CHAR_SCRIPT.MobilityEndTurn``. It implements the entire MobilityEndTurn event used by the library.
 --- It is called on turn end during any job that has an Ally character somehwere on the floor. It constantly resets the character's movement
---- capabilities, ensuring it can always only walk on solid ground.
+--- capabilities, ensuring it is always set to only walk on solid ground.
 --- Please pass all of the event's parameters to this function, in order.
 function library:MobilityEndTurn(_, _, _, _)
     for char in luanet.each(LUA_ENGINE:MakeList(_ZONE.CurrentMap:IterateCharacters(true, false))) do

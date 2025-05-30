@@ -15,7 +15,7 @@ local base_enter = CURMAPSCR.Enter
 function base_camp_2_bulletin.Enter(map)
     DEBUG.EnableDbgCoro() --Enable debugging this coroutine
     GROUND:Unhide("Mission_Board")
-    if MissionGen.root.mission_flags.MissionCompleted then
+    if MissionGen:HasCompletedMissions() then
     	MissionGen:PlayJobsCompletedCutscene(base_camp_2_bulletin.Hand_In_Missions)
     end
 
@@ -74,14 +74,14 @@ function base_camp_2_bulletin.Hand_In_Missions(job, npcs)
     local reward_line1 = STRINGS:Format(MapStrings['Mission_Generic_Reward'])
     local reward_line2 = STRINGS:Format(MapStrings['Mission_Generic_Reward_2'])
 
-    if MissionGen.globals.job_types[job.Type].law_enforcement then
+    if MissionGen:JobTypeIsLawEnforcement(job.Type) then
         UI:WaitShowDialogue(STRINGS:Format(MapStrings['Outlaw_Capture_Cutscene_001'],
             MissionGen:GetCharacterName(job.Target)))
         GAME:WaitFrames(20)
         reward_line1 = STRINGS:Format(MapStrings['Outlaw_Capture_Cutscene_002'])
         reward_line2 = STRINGS:Format(MapStrings['Outlaw_Capture_Cutscene_003'])
         UI:WaitShowDialogue()
-    elseif MissionGen.globals.job_types[job.Type].target_outlaw then
+    elseif MissionGen:JobTypeIsOutlaw(job.Type) then
         UI:WaitShowDialogue(STRINGS:Format(MapStrings['Outlaw_Retrieve_Cutscene'], MissionGen:GetItemName(job.Item)))
     elseif job.Type == "RESCUE_SELF" then
         UI:WaitShowDialogue(STRINGS:Format(MapStrings['Mission_Response_Rescue']))
@@ -110,7 +110,7 @@ function base_camp_2_bulletin.Hand_In_Missions(job, npcs)
     MissionGen:RewardPlayer(job, reward_line1, reward_line2)
     GAME:WaitFrames(20)
 
-    if MissionGen.globals.job_types[job.Type].law_enforcement then
+    if MissionGen:JobTypeIsLawEnforcement(job.Type) then
         UI:SetSpeaker(npcs[1])
         UI:WaitShowDialogue(STRINGS:Format(MapStrings['Outlaw_Capture_Cutscene_004']))
 
