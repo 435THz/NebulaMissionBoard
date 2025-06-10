@@ -1642,6 +1642,13 @@ local settings = {
             "MISSION_TITLE_OUTLAW_ITEM_004",
             "MISSION_TITLE_OUTLAW_ITEM_005"
         },
+        OUTLAW_ITEM_UNK = {
+            "MISSION_TITLE_OUTLAW_ITEM_UNK_001",
+            "MISSION_TITLE_OUTLAW_ITEM_UNK_002",
+            "MISSION_TITLE_OUTLAW_ITEM_UNK_003",
+            "MISSION_TITLE_OUTLAW_ITEM_UNK_004",
+            "MISSION_TITLE_OUTLAW_ITEM_UNK_005"
+        },
         OUTLAW_MONSTER_HOUSE = {
             "MISSION_TITLE_OUTLAW_MONSTER_HOUSE_001",
             "MISSION_TITLE_OUTLAW_MONSTER_HOUSE_002",
@@ -1844,6 +1851,22 @@ local settings = {
                 "MISSION_BODY_BOTTOM_OUTLAW_ITEM_003",
                 "MISSION_BODY_BOTTOM_OUTLAW_ITEM_004",
                 "MISSION_BODY_BOTTOM_OUTLAW_ITEM_005"
+            }
+        },
+        OUTLAW_ITEM_UNK = {
+            {
+                "MISSION_BODY_TOP_OUTLAW_ITEM_UNK_001",
+                "MISSION_BODY_TOP_OUTLAW_ITEM_UNK_002",
+                "MISSION_BODY_TOP_OUTLAW_ITEM_UNK_003",
+                "MISSION_BODY_TOP_OUTLAW_ITEM_UNK_004",
+                "MISSION_BODY_TOP_OUTLAW_ITEM_UNK_005"
+            },
+            {
+                "MISSION_BODY_BOTTOM_OUTLAW_ITEM_UNK_001",
+                "MISSION_BODY_BOTTOM_OUTLAW_ITEM_UNK_002",
+                "MISSION_BODY_BOTTOM_OUTLAW_ITEM_UNK_003",
+                "MISSION_BODY_BOTTOM_OUTLAW_ITEM_UNK_004",
+                "MISSION_BODY_BOTTOM_OUTLAW_ITEM_UNK_005"
             }
         },
         OUTLAW_MONSTER_HOUSE = {

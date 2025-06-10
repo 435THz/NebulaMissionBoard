@@ -319,7 +319,6 @@
 
 
 
-
   <data name="MISSION_TITLE_RESCUE_SELF_001" xml:space="preserve">
     <value>I'm too worn out to go on...</value>
     <comment>Mission Title Text - Target is Client</comment>  </data>
@@ -477,7 +476,6 @@
     <value>Arrest {0}!</value>
     <comment>Mission Title Text - Regular Outlaw</comment>  </data>
 
-
   <data name="MISSION_TITLE_OUTLAW_ITEM_001" xml:space="preserve">
     <value>Someone stole it!</value>
     <comment>Mission Title Text - Outlaw Item</comment>  </data>
@@ -485,7 +483,7 @@
     <value>A thief! Please help!</value>
     <comment>Mission Title Text - Outlaw Item</comment>  </data>
   <data name="MISSION_TITLE_OUTLAW_ITEM_003" xml:space="preserve">
-    <value>Waah! Who took it!?</value>
+    <value>I was robbed!</value>
     <comment>Mission Title Text - Outlaw Item</comment>  </data>
   <data name="MISSION_TITLE_OUTLAW_ITEM_004" xml:space="preserve">
     <value>Grr... They stole my item!</value>
@@ -494,6 +492,21 @@
     <value>Please, catch this thief!</value>
     <comment>Mission Title Text - Outlaw Item</comment>  </data>
 
+  <data name="MISSION_TITLE_OUTLAW_ITEM_UNK_001" xml:space="preserve">
+    <value>It was too dark!</value>
+    <comment>Mission Title Text - Outlaw Item</comment>  </data>
+  <data name="MISSION_TITLE_OUTLAW_ITEM_UNK_002" xml:space="preserve">
+    <value>I couldn't see who it was...</value>
+    <comment>Mission Title Text - Outlaw Item</comment>  </data>
+  <data name="MISSION_TITLE_OUTLAW_ITEM_UNK_003" xml:space="preserve">
+    <value>Waah! Who took it!?</value>
+    <comment>Mission Title Text - Outlaw Item</comment>  </data>
+  <data name="MISSION_TITLE_OUTLAW_ITEM_UNK_004" xml:space="preserve">
+    <value>My item is gone!</value>
+    <comment>Mission Title Text - Outlaw Item</comment>  </data>
+  <data name="MISSION_TITLE_OUTLAW_ITEM_UNK_005" xml:space="preserve">
+    <value>Please, find the thief!</value>
+    <comment>Mission Title Text - Outlaw Item</comment>  </data>
 
   <data name="MISSION_TITLE_OUTLAW_MONSTER_HOUSE_001" xml:space="preserve">
     <value>{0}'s Gang</value>
@@ -510,7 +523,6 @@
   <data name="MISSION_TITLE_OUTLAW_MONSTER_HOUSE_005" xml:space="preserve">
     <value>{0}'s Group!</value>
     <comment>Mission Title Text - Outlaw Monster House</comment>  </data>
-
 
   <data name="MISSION_TITLE_OUTLAW_FLEE_001" xml:space="preserve">
     <value>Hotfoot {0}</value>
@@ -561,7 +573,6 @@
     <value>Aargh, my head...</value>
     <comment>Mission Body Text Top- Target is Client</comment>  </data>
 
-
   <data name="MISSION_BODY_BOTTOM_RESCUE_SELF_001" xml:space="preserve">
     <value>Please, help me!</value>
     <comment>Mission Body Text Bottom- Target is Client</comment>  </data>
@@ -592,7 +603,6 @@
   <data name="MISSION_BODY_BOTTOM_RESCUE_SELF_010" xml:space="preserve">
     <value>Please, anybody...</value>
     <comment>Mission Body Text Bottom- Target is Client</comment>  </data>
-
 
 
 
@@ -627,7 +637,6 @@
     <value>{0} hasn't come home yet...</value>
     <comment>Mission Body Top Text - Target is not Client</comment>  </data>
 
-
   <data name="MISSION_BODY_BOTTOM_RESCUE_FRIEND_001" xml:space="preserve">
     <value>I'm offering a reward upon rescue!</value>
     <comment>Mission Body Bottom Text - Target is not Client</comment>  </data>
@@ -661,8 +670,6 @@
 
 
 
-
-
   <data name="MISSION_BODY_TOP_ESCORT_001" xml:space="preserve">
     <value>I really need to see {0}!</value>
     <comment>Mission Body Top Text - Escort</comment>  </data>
@@ -678,7 +685,6 @@
   <data name="MISSION_BODY_TOP_ESCORT_005" xml:space="preserve">
     <value>I need help meeting {0}!</value>
     <comment>Mission Body Top Text - Escort</comment>  </data>
-
 
   <data name="MISSION_BODY_BOTTOM_ESCORT_001" xml:space="preserve">
     <value>Please, take me there!</value>
@@ -731,6 +737,7 @@
     <comment>Mission Body Bottom Text - Exploration</comment>  </data>
 
 
+
   <data name="MISSION_BODY_TOP_DELIVERY_001" xml:space="preserve">
     <value>Having {2} lets me feel confident!</value>
     <comment>Mission Body Top Text - Delivery</comment>  </data>
@@ -764,6 +771,7 @@
     <comment>Mission Body Bottom Text - Delivery</comment>  </data>
 
 
+
   <data name="MISSION_BODY_TOP_LOST_ITEM_001" xml:space="preserve">
     <value>My {2}... Gone!</value>
     <comment>Mission Body Top Text - Lost Item</comment>  </data>
@@ -795,8 +803,6 @@
   <data name="MISSION_BODY_BOTTOM_LOST_ITEM_005" xml:space="preserve">
     <value>I need it! Help!</value>
     <comment>Mission Body Bottom Text - Lost Item</comment>  </data>
-
-
 
 
 
@@ -848,6 +854,7 @@
     <comment>Mission Body Bottom Text - Regular Outlaw</comment>  </data>
 
 
+
   <data name="MISSION_BODY_TOP_OUTLAW_ITEM_001" xml:space="preserve">
     <value>{0} took my {2}!</value>
     <comment>Mission Body Top Text - Outlaw Item</comment>  </data>
@@ -855,7 +862,7 @@
     <value>{0} ran off with my {2}!</value>
     <comment>Mission Body Top Text - Outlaw Item</comment>  </data>
   <data name="MISSION_BODY_TOP_OUTLAW_ITEM_003" xml:space="preserve">
-    <value>{0} robbed my beloved {2}!</value>
+    <value>{0} took my beloved {2}!</value>
     <comment>Mission Body Top Text - Outlaw Item</comment>  </data>
   <data name="MISSION_BODY_TOP_OUTLAW_ITEM_004" xml:space="preserve">
     <value>That {0}... They pilfered my {2}!</value>
@@ -863,8 +870,6 @@
   <data name="MISSION_BODY_TOP_OUTLAW_ITEM_005" xml:space="preserve">
     <value>Waah! {0} has my {2}!</value>
     <comment>Mission Body Top Text - Outlaw Item</comment>  </data>
-
-
 
   <data name="MISSION_BODY_BOTTOM_OUTLAW_ITEM_001" xml:space="preserve">
     <value>Please get it back for me!</value>
@@ -881,6 +886,41 @@
   <data name="MISSION_BODY_BOTTOM_OUTLAW_ITEM_005" xml:space="preserve">
     <value>I absolutely need it back!</value>
     <comment>Mission Body Bottom Text - Outlaw Item</comment>  </data>
+
+
+
+  <data name="MISSION_BODY_TOP_OUTLAW_ITEM_001" xml:space="preserve">
+    <value>Someone took my {2}!</value>
+    <comment>Mission Body Top Text - Outlaw Item</comment>  </data>
+  <data name="MISSION_BODY_TOP_OUTLAW_ITEM_002" xml:space="preserve">
+    <value>Someone ran off with my {2}!</value>
+    <comment>Mission Body Top Text - Outlaw Item</comment>  </data>
+  <data name="MISSION_BODY_TOP_OUTLAW_ITEM_003" xml:space="preserve">
+    <value>Someone took my beloved {2}!</value>
+    <comment>Mission Body Top Text - Outlaw Item</comment>  </data>
+  <data name="MISSION_BODY_TOP_OUTLAW_ITEM_004" xml:space="preserve">
+    <value>A thief! They pilfered my {2}!</value>
+    <comment>Mission Body Top Text - Outlaw Item</comment>  </data>
+  <data name="MISSION_BODY_TOP_OUTLAW_ITEM_005" xml:space="preserve">
+    <value>Waah! my {2} was stolen!</value>
+    <comment>Mission Body Top Text - Outlaw Item</comment>  </data>
+
+  <data name="MISSION_BODY_BOTTOM_OUTLAW_ITEM_001" xml:space="preserve">
+    <value>Please get it back for me!</value>
+    <comment>Mission Body Bottom Text - Outlaw Item</comment>  </data>
+  <data name="MISSION_BODY_BOTTOM_OUTLAW_ITEM_002" xml:space="preserve">
+    <value>I need it back! I'll reward you for its return!</value>
+    <comment>Mission Body Bottom Text - Outlaw Item</comment>  </data>
+  <data name="MISSION_BODY_BOTTOM_OUTLAW_ITEM_003" xml:space="preserve">
+    <value>Please punish the thief and get it back for me!</value>
+    <comment>Mission Body Bottom Text - Outlaw Item</comment>  </data>
+  <data name="MISSION_BODY_BOTTOM_OUTLAW_ITEM_004" xml:space="preserve">
+    <value>Beat that robber and bring it back, please!</value>
+    <comment>Mission Body Bottom Text - Outlaw Item</comment>  </data>
+  <data name="MISSION_BODY_BOTTOM_OUTLAW_ITEM_005" xml:space="preserve">
+    <value>I absolutely need it back!</value>
+    <comment>Mission Body Bottom Text - Outlaw Item</comment>  </data>
+
 
 
   <data name="MISSION_BODY_TOP_OUTLAW_MONSTER_HOUSE_001" xml:space="preserve">
