@@ -12,7 +12,7 @@
 --- @alias referenceList table<string,boolean>
 --- @alias LibraryRootStruct {boards:table<string,jobTable[]>,taken:jobTable[],dungeon_progress:table<string,table<integer, boolean>>,mission_flags:table<string, any>,previous_limit:integer,escort_jobs:integer}
 --- @alias jobTable {Client:monsterIDTable, Target:monsterIDTable|nil, Flavor:{[1]:string, [2]:string}, Title:string, Zone:string, Segment:integer,
---- Floor:integer, RewardType:string, Reward1:itemTable|nil, Reward2:itemTable|nil, Type:jobType, Completion:integer, Taken:boolean, BackReference:string|nil,
+--- Floor:integer, RewardType:rewardType, Reward1:itemTable|nil, Reward2:itemTable|nil, Type:jobType, Completion:integer, Taken:boolean, BackReference:string|nil,
 --- Difficulty:integer, Item:string|nil, Special:string|nil, HideFloor:boolean} A table containing all properties of a job
 --- @alias itemTable {id:string, count:integer|nil, hidden:string|nil}
 --- @alias monsterIDTable {Species:string, Form:integer|nil, Skin:string|nil, Gender:integer|nil, Nickname:string|nil} A table that can be converted into a MonsterID object
@@ -31,13 +31,13 @@
 
 local library = {
 	--- Settings data imported from missiongen_settings.lua
-    data = require("missiongen_settings"),
+    data = require("missiongen_lib.missiongen_settings"),
 	--- shortcut to the root of the saved mission data, made accessible for quick reference.
 	--- NEVER. EVER. CHANGE THIS VALUE.
 	---@type LibraryRootStruct
     root = SV
 }
-local menus = require("missiongen_menus")
+local menus = require("missiongen_lib.missiongen_menus")
 
 --- Root for global data and enum values.
 local globals = {}
@@ -54,6 +54,7 @@ globals.completion.NotCompleted = 0
 globals.completion.Completed = 1
 ---@type table<string,userdata> Imported C# types
 globals.ctypes = {}
+globals.ctypes.Integer = luanet.import_type('System.Int32')
 globals.ctypes.List = luanet.import_type('System.Collections.Generic.List`1')
 globals.ctypes.MobSpawn = luanet.import_type('RogueEssence.LevelGen.MobSpawn')
 globals.ctypes.LoadGen = luanet.import_type('RogueEssence.LevelGen.LoadGen')
@@ -91,8 +92,8 @@ globals.job_types.EXPLORATION =			 {req_target = false, req_target_item = false,
 globals.job_types.DELIVERY =			 {req_target = false, req_target_item = true,  has_guest = false, target_outlaw = false, law_enforcement = false, can_hide_floor = false, boss = false}
 globals.job_types.LOST_ITEM =			 {req_target = false, req_target_item = true,  has_guest = false, target_outlaw = false, law_enforcement = false, can_hide_floor = false, boss = false}
 globals.job_types.OUTLAW =				 {req_target = true,  req_target_item = false, has_guest = false, target_outlaw = true,  law_enforcement = true,  can_hide_floor = true,  boss = true}
-globals.job_types.OUTLAW_ITEM =			 {req_target = true,  req_target_item = true,  has_guest = false, target_outlaw = false, law_enforcement = true,  can_hide_floor = true,  boss = true}
-globals.job_types.OUTLAW_ITEM_UNK =		 {req_target = true,  req_target_item = true,  has_guest = false, target_outlaw = false, law_enforcement = true,  can_hide_floor = true,  boss = false}
+globals.job_types.OUTLAW_ITEM =			 {req_target = true,  req_target_item = true,  has_guest = false, target_outlaw = true,  law_enforcement = false, can_hide_floor = true,  boss = true}
+globals.job_types.OUTLAW_ITEM_UNK =		 {req_target = true,  req_target_item = true,  has_guest = false, target_outlaw = true,  law_enforcement = false, can_hide_floor = true,  boss = false}
 globals.job_types.OUTLAW_MONSTER_HOUSE = {req_target = true,  req_target_item = false, has_guest = false, target_outlaw = true,  law_enforcement = true,  can_hide_floor = false, boss = true}
 globals.job_types.OUTLAW_FLEE =			 {req_target = true,  req_target_item = false, has_guest = false, target_outlaw = true,  law_enforcement = true,  can_hide_floor = true,  boss = true}
 --- Keywords for client and target generation
@@ -146,8 +147,9 @@ globals.keys.JOB_OBJECTIVE = "MENU_JOB_OBJECTIVE" --Displays the Objective label
 globals.keys.JOB_PLACE = "MENU_JOB_PLACE" --Displays the Place label text
 globals.keys.JOB_DIFFICULTY = "MENU_JOB_DIFFICULTY" --Displays the Difficulty label text
 globals.keys.JOB_REWARD = "MENU_JOB_REWARD" --Displays the Reward label text
+globals.keys.EXTRA_REWARD = "EXTRA_REWARD_AMOUNT" --Displays the Extra Reward. {0} = Amount
 globals.keys.REWARD_SINGLE = "MENU_JOB_REWARD_SINGLE" --Reward string for a job with 1 reward. {0} = Reward1
-globals.keys.REWARD_DOUBLE = "MENU_JOB_REWARD_DOUBLE" --Reward string for a job with 2 rewards. {0} = Reward1
+globals.keys.REWARD_DOUBLE = "MENU_JOB_REWARD_DOUBLE" --Reward string for a job with 2 rewards. {0} = Reward1, {1} = Reward2
 globals.keys.REWARD_UNKNOWN = "MENU_JOB_REWARD_UNKNOWN" --Reward string for special rewards. Meant to be hidden. {0} = Reward1
 globals.keys.BUTTON_TAKE = "MENU_JOB_TAKE" --Label for the button used to take jobs or to activate them
 globals.keys.BUTTON_DELETE = "MENU_JOB_DELETE" --Label for the button used to delete taken jobs
@@ -207,14 +209,14 @@ globals.keysEx.CUTSCENE_AWARD_RANK_UP = "MISSION_COMPLETED_CUTSCENE_AWARD_RANK_U
 function library:load()
     local rootpath = self.data.sv_root_name
     if type(rootpath) ~= "table" then
-    ---@cast rootpath string[]
-        rootpath = {self.data.sv_root_name}
+    	---@cast rootpath string[]
+        rootpath = {self.data.sv_root_name --[[@as string]] }
     end
     for _, id in ipairs(rootpath) do
-        SV[id] = SV[id] or {}
+        self.root[id] = self.root[id] or {}
         self.root = SV[id]
     end
-    self.root.mission_flags = {}
+    self.root.mission_flags = self.root.mission_flags or {}
 	self:loadDifficulties()
 	self:generateBoards()
 	self:loadDungeonTable()
@@ -243,11 +245,11 @@ end
 function library:loadDungeonTable()
 	self.root.dungeon_progress = self.root.dungeon_progress or {}
 	local UnlockState = RogueEssence.Data.GameProgress.UnlockState
-	for dungeon in self.data.dungeons do
+	for dungeon in pairs(self.data.dungeons) do
 		if not self.root.dungeon_progress[dungeon] and _DATA.Save.DungeonUnlocks:ContainsKey(dungeon) then
 			if _DATA.Save.DungeonUnlocks[dungeon] == UnlockState.Completed then
 				self.root.dungeon_progress[dungeon] = {[0] = true} --default to segment 0 completed
-			elseif _DATA.Save.DungeonUnlocks[dungeon] == UnlockState.Unlocked then
+			elseif _DATA.Save.DungeonUnlocks[dungeon] == UnlockState.Discovered then
 				self.root.dungeon_progress[dungeon] = {[0] = false} --default to segment 0 unlocked
 			end
 		end
@@ -374,7 +376,7 @@ end
 ---@param tbl table a table to shuffle
 ---@return table a shuffled version of the table
 local shuffleTable = function(tbl, replay_sensitive)
-    local indices = COMMON:GetSortedKeys(tbl, true)
+    local indices = COMMON.GetSortedKeys(tbl, true)
     local shuffled = {}
     for _=1, #tbl, 1 do
         local index, pos = library:WeightlessRandom(indices, replay_sensitive)
@@ -397,10 +399,10 @@ end
 --- @param zone string the id of the zone to clean up
 --- @param dest_list table the already compiled destination list
 local cleanUpInvalidFloors = function(zone, dest_list)
-	if dest_list.floors_allowed[zone] <= 0 then return end -- nothing to clean up
+	if #dest_list.floors_allowed[zone] <= 0 then return end -- nothing to clean up
 	local data_zone = _DATA:GetZone(zone)
 	local segments = {}
-	for i = #dest_list.floors_allowed[zone], 1, -1 do
+    for i = #dest_list.floors_allowed[zone], 1, -1 do
 		local dest = dest_list.floors_allowed[zone][i]
 		local segment
 		if not segments[dest.segment] then
@@ -412,18 +414,17 @@ local cleanUpInvalidFloors = function(zone, dest_list)
 
 		local remove = false
 		local floor_count = segment.FloorCount
-		if dest.floor >= floor_count then
-			remove = true --discard outside floor range
-			logWarn(globals.warn_types.FLOOR_GEN, "Floor "..dest.floor.." out of range. "..zone..", "..dest.segment.." Has only "..floor_count.." floors.")
-
-		else
-			local map_gen = segment:GetMapGen(dest.floor)
-			local type = LUA_ENGINE:TypeOf(map_gen)
-			if type:IsAssignableTo(luanet.ctype(globals.ctypes.LoadGen)) or type:IsAssignableTo(luanet.ctype(globals.ctypes.ChanceFloorGen)) then
-				logWarn(globals.warn_types.FLOOR_GEN, "Jobs cannot be generated on "..zone..", "..dest.segment..", "..dest.floor.." because it is of type \""..type.FullName.."\"")
-				remove = true --discard fixed floors
-			end
-		end
+        if dest.floor > floor_count then
+            remove = true --discard outside floor range
+            logWarn(globals.warn_types.FLOOR_GEN, "Floor " .. dest.floor .. " out of range. " .. zone .. ", " .. dest.segment .. " Has only " .. floor_count .. " floors.")
+        else
+            local map_gen = segment:GetMapGen(dest.floor - 1)
+            local type = LUA_ENGINE:TypeOf(map_gen)
+            if type:IsAssignableTo(luanet.ctype(globals.ctypes.LoadGen)) or type:IsAssignableTo(luanet.ctype(globals.ctypes.ChanceFloorGen)) then
+                logWarn(globals.warn_types.FLOOR_GEN, "Jobs cannot be generated on " .. zone .. ", " .. dest.segment .. ", " .. dest.floor .. " because it is of type \"" .. type.FullName .. "\"")
+                remove = true --discard fixed floors
+            end
+        end
 		if remove then
 			table.remove(dest_list.floors_allowed[zone], i)
 		end
@@ -489,15 +490,15 @@ local sortJobs = function(j1, j2)
 			-- Sort by segment
 			if j1.Segment == j2.Segment then
 				-- Sort by floor
-				return j1.Floor > j2.Floor
+				return j1.Floor < j2.Floor
 			else
-				return j1.Segment > j2.Segment
+				return j1.Segment < j2.Segment
 			end
 		else
 			return j1.Zone < j2.Zone
 		end
 	else
-		return library.data.dungeon_order[j1.Zone] > library.data.dungeon_order[j2.Zone]
+		return library.data.dungeon_order[j1.Zone] < library.data.dungeon_order[j2.Zone]
 	end
 end
 
@@ -562,7 +563,7 @@ local rescueReachedFlow = function(context, job)
         if job.Special and library.data.rescue_responses.rescue_yes[job.Special] then case = job.Special end
 		local caseTable = library:WeightedRandom(library.data.rescue_responses.rescue_yes[case]) --[[@as {key:string, emotion:emotionType|nil}]]
         if caseTable.emotion then UI:SetSpeakerEmotion(caseTable.emotion) end
-        UI:WaitShowDialogue(caseTable.key)
+        UI:WaitShowDialogue(RogueEssence.StringKey(caseTable.key):ToLocal())
 
         GAME:WaitFrames(20)
         UI:ResetSpeaker()
@@ -572,7 +573,7 @@ local rescueReachedFlow = function(context, job)
         TASK:WaitTask(_DUNGEON:ProcessBattleFX(context.Target, context.Target, _DATA.SendHomeFX))
         _DUNGEON:RemoveChar(context.Target)
         GAME:WaitFrames(50)
-        COMMON.AskMissionWarpOut()
+        library:AskMissionWarpOut()
     else
         --quickly hide the minimap for the 20 frame pause
         local map_setting = _DUNGEON.ShowMap
@@ -624,7 +625,7 @@ local deliveryReachedFlow = function(context, job, oldDir)
             TASK:WaitTask(_DUNGEON:ProcessBattleFX(context.Target, context.Target, _DATA.SendHomeFX))
             _DUNGEON:RemoveChar(context.Target)
             GAME:WaitFrames(50)
-            COMMON.AskMissionWarpOut()
+        	library:AskMissionWarpOut()
         else --they are sad if you dont give them the item
             --quickly hide the minimap for the 20 frame pause
             local map_setting = _DUNGEON.ShowMap
@@ -1142,20 +1143,20 @@ end
 
 local validForms = function(species, flee_check)
     local valid_forms = {}
-    local forms = _DATA.GetMonster(species).Forms
+    local forms = _DATA:GetMonster(species).Forms
     for i = 0, forms.Count - 1, 1 do
         if forms[i].Released and not forms[i].Temporary then
+            local match = false
             if flee_check then
-                local match = false
                 for _, type in ipairs(library.data.fleeing_outlaw_restrictions) do
                     if type == forms[i].Element1 or type == forms[i].Element2 then
                         match = true
                         break
                     end
                 end
-                if not match then
-                    table.insert(forms, i)
-                end
+            end
+            if not match then
+                table.insert(valid_forms, i)
             end
         end
     end
@@ -1228,7 +1229,7 @@ end
 --- @param board_id string the id of the board to check
 --- @return boolean|nil #true if there are 0 jobs inside the board, false otherwise. Returns nil if the board does not exist
 function library:IsBoardEmpty(board_id)
-	if self.data.boards[board_id] then return #self.root.boards[board_id]<=0 else return end
+	if self.data.boards[board_id] then return #self.root.boards[board_id]<=0 end
 end
 
 --- Checks if a board is full or not
@@ -1237,6 +1238,13 @@ end
 function library:IsBoardFull(board_id)
 	if self.data.boards[board_id] then return #self.root.boards[board_id]>=self.data.boards[board_id].size
 	else return end
+end
+
+--- Retrieves the number of jobs inside a board
+--- @param board_id string the id of the board to check
+--- @return integer|nil #The number of jobs in the board. Returns nil if the board does not exist
+function library:GetBoardCount(board_id)
+    if self.data.boards[board_id] then return #self.root.boards[board_id] end
 end
 
 --- Checks if a board is active by running its condition check
@@ -1253,6 +1261,10 @@ function library:IsTakenListEmpty() return #self.root.taken<=0 end
 --- Checks if the player's taken job list is full or not
 --- @return boolean #true if there are no more free job slots inside the taken list, false otherwise.
 function library:IsTakenListFull() return #self.root.taken>=self.data.taken_limit end
+
+--- Retrieves the number of jobs inside the taken list
+--- @return integer #The number of jobs taken. Returns nil if the board does not exist
+function library:GetTakenCount() return #self.root.taken end
 
 --- Checks if the given board has a job in the requested slot
 --- @param board_id string the id of the board to check
@@ -1271,7 +1283,7 @@ function library:GetBoardJob(board_id, index) return self.root.boards[board_id][
 --- Returns a job from a slot in the taken list.
 --- @param index integer|nil The index of the job to fetch.
 --- @return jobTable #the data table of the job at that position, or nil if there is no job there.
-function library:GetTakenJob(board_id, index) return self.root.taken[index] end
+function library:GetTakenJob( index) return self.root.taken[index] end
 
 --- Checks if there are completed missions to hand in
 --- @return boolean #true if there are completed missions, false otherwise
@@ -1325,9 +1337,26 @@ function library:JobsEqual(j1, j2)
 			j1.Segment == j2.Segment and
 			j1.Floor == j2.Floor and
 			j1.Type == j2.Type and
-			j1.Client == j2.Client and
-			j1.Target == j2.Target and
+			self:CharsEqual(j1.Client, j2.Client) and
+			self:CharsEqual(j1.Target, j2.Target) and
 			j1.Item == j2.Item then
+		return true
+	end
+	return false
+end
+
+--- Checks if two character tables are equal. It also checks for nicknames.
+--- @param c1 monsterIDTable a character
+--- @param c2 monsterIDTable another character
+--- @return boolean true if the objects are considered equal, false otherwise
+function library:CharsEqual(c1, c2)
+  if not c1 and not c2 then return true end
+  if (c1 and not c2) or (c2 and not c1) then return false end
+	if c1.Species == c2.Species and
+			c1.Form == c2.Form and
+			c1.Skin == c2.Skin and
+			c1.Gender == c2.Gender and
+			c1.Nickname == c2.Nickname then
 		return true
 	end
 	return false
@@ -1431,7 +1460,7 @@ function library:GetItemName(item)
         local data = _DATA:GetItem(item.id)
         local itemname = data:GetColoredName()
 
-        if (data.MaxStack > 1) then itemname = itemname.." (" + item.count + ")" end
+        if (data.MaxStack > 1) then itemname = itemname.." (" .. item.count .. ")" end
         if (data.UsageType == RogueEssence.Data.ItemData.UseType.Treasure) then
             return STRINGS:Format("[color=#6384E6]{0}[color]", itemname);
         else
@@ -1444,7 +1473,11 @@ end
 --- @param job jobTable the job to generate the objective string of
 --- @return string #the objective string for the job
 function library:GetObjectiveString(job)
-	return STRINGS:FormatKey(self.globals.keys[job.Type], self:GetCharacterName(job.Client), self:GetCharacterName(job.Target), self:GetItemName(job.Item))
+    local client = self:GetCharacterName(job.Client)
+    local target, item = "[color=#FF0000]TARGET[color]", "[color=#FF0000]ITEM[color]"
+    if job.Target then target = self:GetCharacterName(job.Target) end
+    if job.Item and job.Item ~= "" then item = self:GetItemName(job.Item) end
+    return STRINGS:FormatKey(globals.keys[job.Type], client, target, item)
 end
 
 --- Given a job, it returns its location string, complete with floor if the job doesn't hide it
@@ -1467,30 +1500,41 @@ function library:GetZoneString(job)
     end
 end
 
---- Given a job, it returns its difficulty string
+--- Given a job, it returns its difficulty string. It can also include its extra reward.
 --- @param job jobTable the job to generate the difficulty string of
+--- @param include_extra? boolean if true, the extra reward string is included in the returned string. Defaults to false
 --- @return string #the difficulty string for the job
-function library:GetDifficultyString(job)
-    local diff_id = self.data.num_to_difficulty[job.Difficulty]
+function library:GetDifficultyString(job, include_extra)
+    local diff_id = self:NumToDifficulty(job.Difficulty)
     local key = self.data.difficulty_data[diff_id].display_key
-    return STRINGS:FormatKey(key)
+    local str = STRINGS:FormatKey(key)
+    if include_extra and (self.data.extra_reward_type == "exp" or self.data.extra_reward_type == "rank") then
+        local reward_amount = self.data.difficulty_data[self:NumToDifficulty(job.Difficulty)].extra_reward
+        if reward_amount>0 then str = str .. STRINGS:Format(" ({0})", reward_amount) end
+    end
+    return str
 end
 
 --- Given a job, it returns its reward string
 --- @param job jobTable the job to generate the reward string of
 --- @return string #the reward string for the job
 function library:GetRewardString(job)
-    local reward1 = ""
+    local reward1, reward2 = "", "[color=#FF0000]REWARD2[color]"
     if globals.reward_types[job.RewardType][1] then
         reward1 = self:GetItemName(job.Reward1)
-    else
-        local diff_id = self.data.num_to_difficulty[self.job.Difficulty]
+    elseif job.RewardType ~= "client" then
+        local diff_id = self:NumToDifficulty(job.Difficulty)
         local money = self.data.difficulty_data[diff_id].money_reward
         reward1 = STRINGS:FormatKey("MONEY_AMOUNT", money)
+    else
+        reward1 = self:GetCharacterName(job.Client)
+    end
+    if globals.reward_types[job.RewardType][2] then
+        reward2 = self:GetItemName(job.Reward2)
     end
     local pointer = globals.reward_types[job.RewardType][4]
     local key = globals.keys[pointer]
-    return STRINGS:FormatKey(key, reward1)
+    return STRINGS:FormatKey(key, reward1, reward2)
 end
 
 ---Checks if there is at least one external event happening in the specified zone.
@@ -1584,6 +1628,21 @@ function library:MonsterIDToTable(monsterId, nickname)
 	table.Skin = monsterId.Skin
 	table.Gender = self:GenderToNumber(monsterId.Gender)
 	return table
+end
+
+--- Converts a difficulty id into a numerical difficulty level
+--- @param diff string the difficulty id
+--- @return integer #the difficulty level
+function library:DifficultyToNum(diff) return self.data.difficulty_to_num[diff] end
+
+--- Converts a numerical difficulty level into a difficulty id.
+--- A difficulty level outside of range will be clamped to bring it back inside the limits.
+--- It only returns nil if there are no difficulties defined at all.
+--- @param num integer the difficulty level
+--- @return string #the difficulty id
+function library:NumToDifficulty(num)
+	num = math.min(math.max(1,num), #self.data.num_to_difficulty)
+	return self.data.num_to_difficulty[num]
 end
 
 -- ----------------------------------------------------------------------------------------- --
@@ -1751,7 +1810,7 @@ function library:FlushBoard(board_id)
 	end
 end
 
---- Populates a table of valid destinations that is then used by PopulateBoard.
+--- Populates a table of valid destinations that is then used by job generator functions.
 --- @return {destinations:string[], floors_allowed:{segment:integer, floor:integer, difficulty:string}[]} #a list of valid destination zones and the list of allowed floors for each destination
 function library:GetValidDestinations()
 	local job_options = {destinations = {}, floors_allowed = {}}
@@ -1761,7 +1820,7 @@ function library:GetValidDestinations()
 		floors_occupied[job.Zone][job.Segment] = floors_occupied[job.Zone][job.Segment] or {}
 		floors_occupied[job.Zone][job.Segment][job.Floor] = true
 	end
-	for _, board in self.root.boards do
+	for _, board in pairs(self.root.boards) do
 		for _, job in ipairs(board) do
 			floors_occupied[job.Zone] = floors_occupied[job.Zone] or {}
 			floors_occupied[job.Zone][job.Segment] = floors_occupied[job.Zone][job.Segment] or {}
@@ -1782,9 +1841,11 @@ function library:GetValidDestinations()
                         validSegemnt = true						 -- completed dungeons are always ok
                     end
                     if validSegemnt then
-                    local section = segment_data.sections
-                        for i=section[1].start, segment_data.max_floor, 1 do
-                            if not floors_occupied[zone][segment][i] then
+                    	local sections = segment_data.sections
+                        local n, section = 1, sections[1]
+                        for i = sections[1].start, segment_data.max_floor, 1 do
+                        	while sections[n+1] and sections[n+1].start<=i do n, section = n+1, sections[n+1] end
+                            if not floors_occupied[zone] or not floors_occupied[zone][segment] or not floors_occupied[zone][segment][i] then
                                 if not job_options.floors_allowed[zone] then
                                     job_options.floors_allowed[zone] = {}
                                     table.insert(job_options.destinations, zone)
@@ -1811,7 +1872,7 @@ function library:GetDungeonsGuestCount()
 			guest_count[job.Zone] = guest_count[job.Zone] +1
 		end
 	end
-	for _, board in self.root.boards do
+	for _, board in pairs(self.root.boards) do
 		for _, job in ipairs(board) do
 			--taken jobs are gonna be in the taken list above already, so they shouldn't be counted again
 			if not job.Taken and globals.job_types[job.Type].has_guest then
@@ -1829,371 +1890,457 @@ end
 --- @param board_id string the id of the board to generate jobs for
 --- @param destinations {destinations:string[], floors_allowed:{segment:integer, floor:integer, difficulty:string}[]} valid destination table created by "GetValidDestinations()". It also gets updated in-place for coherent and quick reuse. If absent, it will be generated in-place.
 function library:PopulateBoard(board_id, destinations)
-	local data = self.data.boards[board_id]
-	if not data then
-		logError(globals.error_types.ID, "Board with id \""..board_id.."\" does not exist. Cannot generate quests.")
-		return
-	end
-	self.root.boards[board_id] = self.root.boards[board_id] or {}
-	if not destinations then destinations = self:GetValidDestinations() end
-	local guest_count = self:GetDungeonsGuestCount()
+    local data = self.data.boards[board_id]
+    if not data then
+        logError(globals.error_types.ID, "Board with id \"" .. board_id .. "\" does not exist. Cannot generate quests.")
+        return
+    end
+    self.root.boards[board_id] = self.root.boards[board_id] or {}
+    if not destinations then destinations = self:GetValidDestinations() end
+    local guest_count = self:GetDungeonsGuestCount()
 
-	while(#self.root.boards[board_id] < self.data.boards[board_id].size) do
-		local newJob = jobTemplate()
-		newJob.BackReference = board_id
+    while (#self.root.boards[board_id] < self.data.boards[board_id].size) do
 
+        -- choose destination
+        if #destinations.destinations <= 0 then break end
+        local zone, zone_index = self:WeightlessRandom(destinations.destinations)
+        ---@cast zone string because we already checked there is at least 1 possible result
+        cleanUpInvalidFloors(zone, destinations)
 
-		-- choose destination
-		if #destinations.destinations <= 0 then break end
-		local zone, zone_index = self:WeightlessRandom(destinations.destinations)
-		---@cast zone string because we already checked there is at least 1 possible result
-		cleanUpInvalidFloors(zone, destinations)
+        if not destinations.floors_allowed[zone] or #destinations.floors_allowed[zone] <= 0 then
+            --clean up and try again if there are no valid destinations in this dungeon
+            destinations.floors_allowed[zone] = nil
+            table.remove(destinations.destinations, zone_index)
+        else
+            local dest2, dest2_index = self:WeightlessRandom(destinations.floors_allowed[zone])
+            ---@cast dest2 {segment:integer, floor:integer, difficulty:string} because we already checked there is at least 1 possible result
+            local segment, floor = dest2.segment, dest2.floor
+            local difficulty = self:DifficultyToNum(dest2.difficulty)
 
-		if not destinations.floors_allowed[zone] or #destinations.floors_allowed[zone] <= 0 then
-			--clean up and try again if there are no valid destinations in this dungeon
-			destinations.floors_allowed[zone] = nil
-			table.remove(destinations.destinations, zone_index)
-		else
-			local dest2, dest2_index = self:WeightlessRandom(destinations.floors_allowed[zone])
-			---@cast dest2 {segment:integer, floor:integer, difficulty:string} because we already checked there is at least 1 possible result
-			local segment, floor = dest2.segment, dest2.floor
-			local difficulty = self.data.difficulty_to_num[dest2.difficulty]
-			newJob.Zone = zone
-			newJob.Segment = segment
-			newJob.Floor = floor
+            -- choose job type and finalize difficulty adjustments
+            local possible_job_types = {}
+            for i = #self.data.boards[board_id].job_types, 1, -1 do
+                local job_type_entry = self.data.boards[board_id].job_types[i]
+                local job_type_properties = self.data.job_types[job_type_entry.id]
+                if not globals.job_types[job_type_entry.id] then
+                    logError(globals.error_types.DATA, "\"" .. job_type_entry.id .. "\" in job board \"" .. board_id .. "\" is not a valid job type and will be ignored.")
+                    table.remove(self.data.boards[board_id].job_types, i)
+                elseif not job_type_properties then
+                    logError(globals.error_types.DATA, "\"" .. job_type_entry.id .. "\" in job board \"" .. board_id .. "\" has no settings associated to it and will be ignored.")
+                    table.remove(self.data.boards[board_id].job_types, i)
+                else
+                    local min_rank = job_type_properties.min_rank
+                    local min_difficulty
+                    if min_rank then
+                        min_difficulty = self:DifficultyToNum(min_rank)
+                    else
+                        min_difficulty = 0
+                    end
+                    -- TODO add sanity check on rank values? maybe only active in dev mode? How do you even check if you're in dev mode again? Maybe the sanity check should be on dev mode load, on everything
+                    min_difficulty = min_difficulty - (job_type_properties.rank_modifier or 0)
+                    local add = true
+                    if min_difficulty > difficulty then add = false end
+                    if globals.job_types[job_type_entry.id].has_guest
+                        and guest_count[zone] and guest_count[zone] >= self.data.max_guests then
+                        add = false
+                    end
+                    if add then
+                        table.insert(possible_job_types, job_type_entry)
+                    end
+                end
+            end
+            if #possible_job_types <= 0 then
+                --weed out any floor where no jobs can spawn EVER because of the difficulty constraints.
+                for i, elem in ipairs(destinations.floors_allowed[zone]) do
+                    if self:DifficultyToNum(elem.difficulty) < difficulty then
+                        table.remove(destinations.floors_allowed[zone], i)
+                    end
+                end
+                if #destinations.floors_allowed[zone] <= 0 then
+                    --clean up if empty, then try again
+                    destinations.floors_allowed[zone] = nil
+                    table.remove(destinations.destinations, zone_index)
+                end
+            else
+                local job_type = self:WeightedRandom(possible_job_types) .id --[[@as string]] --it is safe because we already checked there is at least 1 possible result
+                local newJob = self:MakeNewJob(zone, segment, floor, job_type)
+            	if not newJob then return end --abort if failed
+                self:AddJobToBoard(board_id, newJob)
+            	table.remove(destinations.floors_allowed[zone], dest2_index)
+                if #destinations.floors_allowed[zone] <= 0 then
+                    destinations.floors_allowed[zone] = nil
+                    table.remove(destinations.destinations, zone_index)
+                end
+            end
+        end
+    end
+end
 
-		-- choose job type and finalize difficulty adjustments
-			local possible_job_types = {}
-			for i = #self.data.boards[board_id].job_types, -1, 1 do
-				local job_type_entry = self.data.boards[board_id].job_types[i]
-				local job_type_properties = self.data.job_types[job_type_entry.id]
-				if not globals.job_types[job_type_entry.id] then
-					logError(globals.error_types.DATA, "\""..job_type_entry.id.."\" in job board \""..board_id.."\" is not a valid job type and will be ignored.")
-					table.remove(self.data.boards[board_id].job_types, i)
-				elseif not job_type_properties then
-					logError(globals.error_types.DATA, "\""..job_type_entry.id.."\" in job board \""..board_id.."\" has no settings associated to it and will be ignored.")
-					table.remove(self.data.boards[board_id].job_types, i)
-				else
-					local min_rank = job_type_properties.min_rank
-					local min_difficulty
-					if min_rank then min_difficulty = self.data.difficulty_to_num[min_rank]
-					else min_difficulty = 0
-					end
-					-- TODO add sanity check on rank values? maybe only active in dev mode? How do you even check if you're in dev mode again? Maybe the sanity check should be on dev mode load, on everything
-					min_difficulty = min_difficulty - (job_type_properties.rank_modifier or 0)
-					local add = true
-					if min_difficulty > difficulty then add = false end
-					if globals.job_types[job_type_entry.id].has_guest
-							and guest_count[zone] and guest_count[zone] >= self.data.max_guests then add = false end
-					if add then
-						table.insert(possible_job_types, job_type_entry)
-					end
-				end
-			end
-			if #possible_job_types <= 0 then
-				--weed out any floor where no jobs can spawn EVER because of the difficulty constraints.
-				for i, elem in destinations.floors_allowed[zone] do
-					if self.data.difficulty_to_num[elem.difficulty] < difficulty then
-						table.remove(destinations.floors_allowed[zone], i)
-					end
-				end
-				if #destinations.floors_allowed[zone] <= 0 then
-					--clean up if empty, then try again
-					destinations.floors_allowed[zone] = nil
-					table.remove(destinations.destinations, zone_index)
-				end
-			else
-				local job_type = self:WeightedRandom(possible_job_types).id --[[@as string]] --it is safe because we already checked there is at least 1 possible result
-				newJob.Type = job_type
-				difficulty = difficulty + self.data.job_types[job_type].rank_modifier
-				newJob.Difficulty = difficulty
+---@param job jobTable
+local rollTargetItem = function(job)
+    if globals.job_types[job.Type].req_target_item then
+        if library.data.target_items[job.Type] and #library.data.target_items[job.Type] > 0 then
+            job.Item = library:WeightlessRandom(library.data.target_items[job.Type])
+        else
+            logError(globals.error_types.DATA, "No target items associated to job type \"" .. job.Type .. "\". Setting target to \"" .. globals.defaults.item .. "\"")
+            job.Item = globals.defaults.item
+        end
+    end
+end
 
-				-- Roll for floor hide chance
-				if globals.job_types[job_type].can_hide_floor then
-					if math.random() < self.data.hidden_floor_chance then newJob.HideFloor = true end
-				end
+---@param job jobTable
+local rollHiddenFloor = function(job)
+    if globals.job_types[job.Type].can_hide_floor then
+        if math.random() < library.data.hidden_floor_chance then job.HideFloor = true end
+    end
+end
 
-				if globals.job_types[job_type].req_target_item then
-					if self.data.target_items[job_type] and #self.data.target_items[job_type] > 0 then
-						newJob.Item = self:WeightlessRandom(self.data.target_items[job_type])
-					else
-						logError(globals.error_types.DATA, "No target items associated to job type \""..job_type.."\". Setting target to \""..globals.defaults.item.."\"")
-						newJob.Item = globals.defaults.item
-					end
-				end
+---@param job jobTable
+---@param client? string|monsterIDTable
+---@param target? string|monsterIDTable
+local rollCharacters = function(job, client, target)
+    ---@type (string|monsterIDTable)[]
+    local characters = {}
+    local difficulty_id = library:NumToDifficulty(job.Difficulty)
+    local tier = library:WeightedRandom(library.data.difficulty_to_tier[difficulty_id]).id
 
-				local special
-				if self.data.special_cases[job_type] and math.random() < self.data.special_chance then
-					special = self:WeightlessRandom(self.data.special_cases[job_type])
-					newJob.Special = special or ""
-				end
+    if job.Special and job.Special ~= "" then
+        local special_data = library:WeightlessRandom(library.data.special_data[job.Special][tier])
+        if special_data then
+            if not job.Client or not job.Target then
+                characters[1] = special_data.client
+                characters[2] = special_data.target
+            end
+            job.Flavor[1] = special_data.flavor
+        end
+    end
 
-				-- choose client and target. this must be done here because exclusive item rewards require it
-				local client, target = nil, nil
-				local tier = self:WeightedRandom(self.data.difficulty_to_tier[difficulty]).id
-				if special then
-					local special_data = self.data.special_data[special][tier]
-					---@cast special_data {client:monsterIDTable|string, target:monsterIDTable|string, flavor:string}
-					client = special_data.client
-					target = special_data.target
-					newJob.Flavor[1] = special_data.flavor
-				else
-					local flee_check = newJob.Type == "OUTLAW_FLEE"
-				    -- Change tier if the currently picked one has no seen mons, choosing the most common
-					local otherPossibleTiers = {}
-					for _, tier2 in ipairs(self.data.difficulty_to_tier[difficulty]) do
-						if tier ~= tier2.id and tier2.weight > 0 then
-							table.insert(otherPossibleTiers, tier2)
-						end
-					end
-					table.sort(otherPossibleTiers, function(a, b) return a.weight < b.weight end)
-                    local pool = self.data.pokemon[tier]
-                    ---@type (string|monsterIDTable)[]
-					local real_pool
-					repeat
-						real_pool = {}
-                        for _, mon in ipairs(pool) do
-                        	local species = mon
-                            if type(mon) == "table" then
-                                species = mon.Species --[[@as string]]
+    characters = {
+        characters[1] or client,
+        characters[2] or target,
+    }
+
+    if not (characters[1] and characters[2]) then
+        local flee_check = job.Type == "OUTLAW_FLEE"
+        -- Change tier if the currently picked one has no seen mons, choosing the most common
+        local otherPossibleTiers = {}
+        for _, tier2 in ipairs(library.data.difficulty_to_tier[difficulty_id]) do
+            if tier ~= tier2.id and tier2.weight > 0 then
+                table.insert(otherPossibleTiers, tier2)
+            end
+        end
+        table.sort(otherPossibleTiers, function(a, b) return a.weight < b.weight end)
+        local pool = library.data.pokemon[tier]
+        ---@type (string|monsterIDTable)[]
+        local real_pool
+        while true do
+            real_pool = {}
+            for _, mon in ipairs(pool) do
+                local species = mon
+                if type(mon) == "table" then
+                    species = mon.Species --[[@as string]]
+                end
+                local hasValidForms = (type(mon) == "table" and isValidForm(mon.Species, mon.Form, flee_check)) or
+                    #validForms(mon, flee_check) > 0
+                if _DATA.Save.Dex:ContainsKey(species) and
+                    _DATA.Save.Dex[species] ~= RogueEssence.Data.GameProgress.UnlockState.None and
+                    hasValidForms then
+                    table.insert(real_pool, mon)
+                end
+            end
+            if #real_pool > 0 then break end
+            if #otherPossibleTiers <= 0 then break end
+            pool = library.data.pokemon[otherPossibleTiers[#otherPossibleTiers].id]
+
+            table.remove(otherPossibleTiers)
+        end
+        -- choose any from the originally picked list if there are no options anywhere
+        if #real_pool <= 0 then
+            for _, mon in ipairs(library.data.pokemon[tier]) do
+                if (type(mon) == "table" and isValidForm(mon.Species, mon.Form, flee_check)) or #validForms(mon, flee_check) > 0 then
+                    table.insert(real_pool, mon)
+                end
+            end
+        end
+
+        --roll on the extracted pool
+        local slots = { "client", "target" }
+        for i = 1, 2, 1 do
+            if not characters[i] then
+                if i == 1 and globals.job_types[job.Type].law_enforcement then
+                    characters[i] = globals.keywords.ENFORCER
+                elseif i == 1 or globals.job_types[job.Type].req_target then
+                    local result = library:WeightlessRandom(real_pool)
+                    if type(result) == "table" then
+                        characters[i] = result
+                    elseif result then
+                        ---@cast result string
+                        characters[i] = {
+                            Species = result,
+                            Form = library:WeightlessRandom(validForms(result, flee_check)) or 0
+                        } --[[@as monsterIDTable]]
+                    else
+                        error("[" .. globals.error_types.DATA .. "] Could not select pokémon for tier \"" .. tier .. "\", job type \"" .. job.Type .. "\"")
+                    end
+                end
+            end
+        end
+        for i = 1, 2, 1 do
+            --at the end of the last process we either filled all that needed to be filled, or we errored out
+            if characters[i] then
+                -- parse law enforcement keywords
+                if characters[i] == globals.keywords.ENFORCER then
+                    local roll = library:WeightedRandom(library.data.enforcer_chance[tier])
+                    if not roll then
+                        error("[" .. globals.error_types.DATA .. "] Setting \"enforcer_chance\" has no possible value for tier \"" .. tier .. "\"")
+                        break
+                    end
+                    if roll.id == globals.keywords.AGENT and roll.index and roll.index > 0 and roll.index <= #library.data.law_enforcement.AGENT then
+                        characters[i] = library.data.law_enforcement.AGENT[roll.index] --[[@as monsterIDTable]]
+                    else
+                        characters[i] = roll.id
+                    end
+                end
+                if characters[i] == globals.keywords.AGENT then
+                    characters[i] = library:WeightedRandom(library.data.law_enforcement.AGENT) --[[@as monsterIDTable]]
+                end
+                ---@cast characters monsterIDTable[]
+                --finalize tables
+                if type(characters[i]) ~= "table" then
+                    error("[" .. globals.error_types.DATA .. "] Could not generate job " .. slots[i] .. ". Its final value was: " .. tostring(characters[i]))
+                end
+            end
+        end
+    end
+    ---@cast characters monsterIDTable[]
+    job.Client = library:NormalizeMonsterIDTable(characters[1])
+    if globals.job_types[job.Type].req_target then job.Target = library:NormalizeMonsterIDTable(characters[2]) end
+end
+
+---@param job jobTable
+---@param type? rewardType
+---@param items? {[1]:string|itemTable, [2]:string|itemTable}
+local setupRewards = function(job, type, items)
+    local xcl = false
+    if type then
+        job.RewardType = type
+    elseif items then --and not type
+        local combo = 0
+        if items[1] then combo = combo + 1 end
+        if items[2] then combo = combo + 2 end
+        if combo == 0 then
+            job.RewardType = "money"
+        elseif combo == 1 then
+            xcl = _DATA:GetItem(items[1].id).UsageType == RogueEssence.Data.ItemData.UseType.Treasure
+            if xcl then
+                job.RewardType = "exclusive"
+            else
+                job.RewardType = "item"
+            end
+        elseif combo == 2 then
+            job.RewardType = "money_item"
+        elseif combo == 3 then
+            job.RewardType = "item_item"
+        end
+    else
+        local reward_type
+        local possible_reward_types = {}
+        for i = #library.data.reward_types, 1, -1 do
+            local reward_type_entry = library.data.reward_types[i]
+            if not globals.reward_types[reward_type_entry.id] then
+                logError(globals.error_types.DATA, "\"" .. reward_type_entry.id .. "\" is not a valid reward type and will be ignored.")
+                table.remove(globals.reward_types, i)
+            elseif not reward_type_entry.min_rank or job.Difficulty >= library:DifficultyToNum(reward_type_entry.min_rank) then
+                table.insert(possible_reward_types, reward_type_entry)
+            end
+        end
+        if #possible_reward_types <= 0 then
+            logError(globals.error_types.DATA, "No possible reward types for quest difficulty \"" .. library:NumToDifficulty(job.Difficulty) .. "\". Setting to \"money\"")
+            reward_type = "money"
+        else
+            reward_type = library:WeightedRandom(possible_reward_types).id --[[@as string]] --it is safe because we already checked there is at least 1 possible result
+        end
+        job.RewardType = reward_type
+    end
+
+    --type has been set up. fill in item slots
+    items = {}
+    local difficulty_id = library:NumToDifficulty(job.Difficulty)
+    for i = 1, 2, 1 do
+        if globals.reward_types[job.RewardType][i] then
+            if globals.reward_types[job.RewardType][3] and not xcl then         -- if reward type specifies exclusive
+                local rarityData = _DATA.UniversalData.Get(luanet.ctype(globals.ctypes.RarityData))
+                local possibleItems = {}
+                local species = job.Client.Species
+                if globals.job_types[job.Type].target_outlaw then
+                    species = job.Target.Species
+                end
+                if rarityData.RarityMap:ContainsKey(species) then
+                    local rarityTable = rarityData.RarityMap[species]
+                    if rarityTable:ContainsKey(1) then
+                        for item_id in luanet.each(rarityTable[i]) do
+                            if _DATA.DataIndices[RogueEssence.Data.DataManager.DataType.Item].Get(item_id).Released then
+                                table.insert(possibleItems, item_id)
                             end
-
-							local hasValidForms = (type(mon) == "table" and isValidForm(mon.Species, mon.Form, flee_check)) or #validForms(mon, flee_check)>0
-							if _DATA.DataIndices[RogueEssence.Data.DataManager.DataType.Monster].Get(species).Released and
-									_DATA.Save.Dex:ContainsKey(species) and
-									_DATA.Save.Dex[species] ~= RogueEssence.Data.GameProgress.UnlockState.None and
-                                	hasValidForms then
-								table.insert(real_pool, mon)
-							end
-						end
-						if #real_pool>0 then break end
-						pool = self.data.pokemon[otherPossibleTiers[#otherPossibleTiers].id]
-						table.remove(otherPossibleTiers)
-					until #otherPossibleTiers <= 0
-					-- choose any from the originally picked list if there are no options anywhere
-					if #real_pool <= 0 then
-                        real_pool = self.data.pokemon[tier]
-						flee_check = false
-					end
-					if globals.job_types[job_type].law_enforcement then
-						client = globals.keywords.ENFORCER
-					else
-                        local result = self:WeightlessRandom(real_pool)
-                        if type(result) == "table" then
-							client = result
-                        else
-							---@cast result string
-							client = {Species = result, Form = self:WeightlessRandom(validForms(result, flee_check)) or 0} --[[@as monsterIDTable]]
-						end
-					end
-					if globals.job_types[job_type].req_target then
-                        local result = self:WeightlessRandom(real_pool)
-                        if type(result) == "table" then
-							target = result
-                        else
-							---@cast result string
-							target = {Species = result, Form = self:WeightlessRandom(validForms(result, flee_check)) or 0} --[[@as monsterIDTable]]
-						end
-					end
-				end
-				-- parse law enforcement keywords
-				if client == globals.keywords.ENFORCER then
-					local roll = self:WeightedRandom(self.data.enforcer_chance[tier])
-					if not roll then
-					    logError(globals.error_types.DATA, "Setting \"enforcer_chance\" has no possible value for tier \"..tier..\"")
-					    break
-					end
-					if roll.id == globals.keywords.AGENT and roll.index and roll.index>0 and roll.index<=#self.data.law_enforcement.AGENT then
-						client = self.data.law_enforcement.AGENT[roll.index]
-					else
-						client = roll.id
-					end
-				end
-				if target == globals.keywords.ENFORCER then
-					local roll = self:WeightedRandom(self.data.enforcer_chance[tier])
-					if not roll then
-					    logError(globals.error_types.DATA, "Setting \"enforcer_chance\" has no possible value for tier \"..tier..\"")
-					    break
-					end
-					if roll.id == globals.keywords.AGENT and roll.index and roll.index>0 and roll.index<=#self.data.law_enforcement.AGENT then
-						target = self.data.law_enforcement.AGENT[roll.index]
-					else
-						target = roll.id
-					end
-				end
-				if client == globals.keywords.OFFICER then
-					client = self.data.law_enforcement.OFFICER
-				end
-				if target == globals.keywords.OFFICER then
-					target = self.data.law_enforcement.OFFICER
-				end
-				if client == globals.keywords.AGENT then
-					client = self:WeightedRandom(self.data.law_enforcement.AGENT)
-					---@cast client monsterIDTable
-				end
-				if target == globals.keywords.AGENT then
-                    target = self:WeightedRandomExclude(self.data.law_enforcement.AGENT, {client}, false, "")
-					---@cast target monsterIDTable
-				end
-				local abort = false
-                if type(client) ~= "table" then
-                    logError(globals.error_types.DATA, "Could not generate job client. Its final value was: "..tostring(client))
-                    abort = true
+                            if #possibleItems > 0 then
+                                items[i] = library:WeightlessRandom(possibleItems)
+                            end
+                        end
+                    end
+                else
+                    if i == 1 then
+                        job.RewardType = "item"
+                    else
+                        job.RewardType = "money_item"
+                    end
+                    items[i] = { id = globals.defaults.item }
                 end
-                if target and type(target) ~= "table" then
-                    logError(globals.error_types.DATA, "Could not generate job target. Its final value was: "..tostring(target))
-                    abort = true
+            elseif not items[i] then
+                if not library.data.rewards_per_difficulty or #library.data.rewards_per_difficulty[difficulty_id] <= 0 then
+                    logError(globals.error_types.DATA, "No possible rewards for quest difficulty \"" .. difficulty_id .. "\". Setting to \"" .. globals.defaults.item .. "\"")
+                    if i == 1 then
+                        job.RewardType = "item"
+                    else
+                        job.RewardType = "money_item"
+                    end
+                    items[i] = { id = globals.defaults.item }
+                else
+                    -- redundant path check
+                    local checked = {}
+                    ---@type table|nil
+                    local result = {}
+                    local pool = library:WeightedRandom(library.data.rewards_per_difficulty[difficulty_id]).id
+                    repeat
+                        if not pool or not library.data.reward_pools[pool] or #library.data.reward_pools[pool] <= 0 then
+                            if not pool then
+                                logError(globals.error_types.DATA, "No reward pools defined for quest difficulty \"" .. difficulty_id .. "\". Setting reward type to \"money\"")
+                            else
+                                logError(globals.error_types.DATA, "Reward pool \"" .. pool .. "\" does not exist. Setting reward type to \"money\"")
+                            end
+                            job.RewardType = "money"
+                            result = nil
+                            break
+                        else
+                            checked[pool] = true
+                            result = library:WeightedRandomExclude(library.data.reward_pools[pool], checked)
+                            if result then
+                                pool = result.id
+                            else
+                                result = nil
+                            end
+                        end
+                    until not library.data.reward_pools[pool]
+                    if result then
+                        items[i] = result
+                    end -- no else because it would only happen if the loop fails, but in that case it would already be set
                 end
-                if abort then break end
-				newJob.Client = self:NormalizeMonsterIDTable(client)
-				if target then newJob.Target = self:NormalizeMonsterIDTable(target) end
+            end
+        end
+    end
+    if globals.reward_types[job.RewardType][1] then job.Reward1 = { id = items[1].id, count = items[1].count, hidden = items[1].hidden } end
+    if globals.reward_types[job.RewardType][2] then job.Reward2 = { id = items[2].id, count = items[2].count, hidden = items[2].hidden } end
+end
 
+---@param job jobTable
+local rollFlavor = function(job)
+    if job.Flavor[1] == "" then
+        for i = 1, 2, 1 do
+            job.Flavor[i] = library:WeightlessRandom(library.data.job_flavor[job.Type][i])
+        end
+    end
+    if not job.Flavor[1] then
+        logError(globals.error_types.DATA, "No possible flavor text for job type \"" .. job.Type .. "\"")
+        job.Flavor = { "", "" }
+    end
+end
 
+---@param job jobTable
+local rollTitle = function(job)
+    local title_group = job.Type
+    if job.Special and job.Special ~= "" then
+        title_group = job.Special
+    end
+    local title = library:WeightlessRandom(library.data.job_titles[title_group])
+    if not title then
+        logError(globals.error_types.DATA, "No possible titles for quest category \"" .. title_group .. "\"")
+    end
+    job.Title = title or ""
+end
 
-				local reward_type
-				local possible_reward_types = {}
-				for i = #self.data.reward_types, -1, 1 do
-					local reward_type_entry = self.data.reward_types[i]
-					if not globals.reward_types[reward_type_entry.id] then
-						logError(globals.error_types.DATA, "\""..reward_type_entry.id.."\" is not a valid reward type and will be ignored.")
-						table.remove(globals.reward_types, i)
-					elseif not reward_type_entry.min_rank or difficulty >= self.data.difficulty_to_num[reward_type_entry.min_rank] then
-						table.insert(possible_reward_types, reward_type_entry)
-					end
-				end
-				if #possible_reward_types <= 0 then
-					logError(globals.error_types.DATA, "No possible reward types for quest difficulty \""..self.data.num_to_difficulty[difficulty].."\". Setting to \"money\"")
-					reward_type = "money"
-				else
-					reward_type = self:WeightedRandom(possible_reward_types).id --[[@as string]] --it is safe because we already checked there is at least 1 possible result
-				end
+--- Generates a new job with the specified data. Location and job type are mandatory. Any other missing parameter will be generated randomly.
+---@param zone string the id of the zone this job should take place in
+---@param segment integer the index of the segment this job should take place in
+---@param floor integer the floor this job should take place in, counting from 1
+---@param job_type jobType the id of the job type to assign to this job
+---@param client? string|monsterIDTable data that will be used for the client of this job
+---@param target? string|monsterIDTable data that will be used for the target of this job. Only used if the job type requires a target
+---@param target_item? string the id of the item that will be used as target. Only used if the job type requires an item
+---@param reward_type? rewardType the combination of rewards that will be awarded for this job. If not set but rewards is, it will be inferred from the items used
+---@param rewards? {[1]:string|itemTable, [2]:string|itemTable} the item rewards that will be awarded for this job. If not set but reward_type is, they will be generated automatically. If the first item is nil, it will award money in its place.
+---@param title? string the title string key to use for this job. If not set, it will be chosen randomly.
+---@param flavor? string[] the flavor string key or keys to use for this job. If not set, they will be chosen randomly.
+---@param hide_floor? boolean if true, the job's floor will be hidden.
+---@return jobTable?
+function library:MakeNewJob(zone, segment, floor, job_type, client, target, target_item, reward_type, rewards, title, flavor, hide_floor)
+    local newJob = jobTemplate()
+    newJob.Zone = zone
+    newJob.Segment = segment
+    newJob.Floor = floor
+    newJob.Type = job_type
+    local sections = self.data.dungeons[newJob.Zone][newJob.Segment]
+    for _, section in ipairs(sections.sections) do
+        if section.start > newJob.Floor then break end
+        newJob.Difficulty = self:DifficultyToNum(section.difficulty)
+    end
+    --calc difficulty
+    if self.data.job_types[newJob.Type].rank_modifier then
+        newJob.Difficulty = newJob.Difficulty + self.data.job_types[newJob.Type].rank_modifier
+    end
+    --calc target item
+    if target_item then newJob.Item = target_item
+    else rollTargetItem(newJob) end
+    --set hidden_floor depending on chance
+    if hide_floor ~= nil then newJob.HideFloor = not not hide_floor
+    else rollHiddenFloor(newJob) end
 
-				local difficulty_id = self.data.num_to_difficulty[difficulty]
-				newJob.RewardType = reward_type
+    local status, err = pcall(rollCharacters, newJob, client, target)
+    if not status then
+        PrintInfo(err)
+        return
+    end
 
-                ---@type {[1]:string|table, [2]:string|table}
-				local rewards = {"", ""}
-				for i = 1, 2, 1 do
-					if globals.reward_types[reward_type][i] then
-						if globals.reward_types[reward_type][3] then -- if reward type specifies exclusive
-							local rarityData = _DATA.UniversalData.Get(luanet.ctype(globals.ctypes.RarityData))
-							local possibleItems = {}
-							local species = client
-							if globals.job_types[job_type].target_outlaw then
-								species = target
-							end
-							if rarityData.RarityMap:ContainsKey(species) then
-								local rarityTable = rarityData.RarityMap[species]
-								if rarityTable:ContainsKey(1) then
-									for item_id in luanet.each(rarityTable[i]) do
-										if _DATA.DataIndices[RogueEssence.Data.DataManager.DataType.Item].Get(item_id).Released then
-											table.insert(possibleItems, item_id)
-										end
-										if #possibleItems > 0 then
-											rewards[i] = self:WeightlessRandom(possibleItems)
-										end
-									end
-								end
-							end
-							if i==1 then reward_type = "item"
-							else reward_type = "money_item" end
-							rewards[i] = {id = globals.defaults.item}
-						else
-							if not self.data.rewards_per_difficulty or #self.data.rewards_per_difficulty[difficulty_id] <= 0 then
-								logError(globals.error_types.DATA, "No possible rewards for quest difficulty \""..difficulty_id.."\". Setting to \""..globals.defaults.item.."\"")
-								if i==1 then reward_type = "item"
-								else reward_type = "money_item" end
-								rewards[i] = {id = globals.defaults.item}
-							else
-								-- redundant path check
-								local checked = {}
-								---@type table|nil
-								local result = {}
-								local pool = self:WeightedRandom(self.data.rewards_per_difficulty[difficulty_id]).id
-								repeat
-									if not pool or not self.data.reward_pools[pool] or #self.data.reward_pools[pool] <= 0 then
-										if not pool then
-											logError(globals.error_types.DATA, "No reward pools defined for quest difficulty \""..difficulty_id.."\". Setting reward type to \"money\"")
-										else
-											logError(globals.error_types.DATA, "Reward pool \""..pool.."\" does not exist. Setting reward type to \"money\"")
-										end
-										reward_type = "money"
-										result = nil
-										break
-									else
-										checked[pool] = true
-										result = self:WeightedRandomExclude(self.data.reward_pools[pool], checked)
-										if result then pool = result.id
-										else result = nil end
-									end
-								until not self.data.reward_pools[pool]
-								if result then
-									rewards[i] = result
-								end -- no else because it only happens if the loop fails
-							end
-						end
-					end
-				end
-				newJob.Reward1 = {id = rewards[1].id, count = rewards[1].count, hidden = rewards[1].hidden}
-				newJob.Reward2 = {id = rewards[2].id, count = rewards[2].count, hidden = rewards[2].hidden}
+	setupRewards(newJob, reward_type, rewards)
 
-				if newJob.Flavor[1] == "" then
-					for i=1, 2, 1 do
-						newJob.Flavor[i] = self:WeightlessRandom(self.data.job_flavor[job_type][i])
-					end
-				end
-				if not newJob.Flavor[1] then
-				    logError(globals.error_types.DATA, "No possible flavor text for job type \""..job_type.."\"")
-				    newJob.Flavor = {"", ""}
-				end
+    if flavor then newJob.Flavor = flavor
+    else rollFlavor(newJob) end
 
-				local title_group = job_type
-				if special ~= "" then
-					title_group = special
-				end
-				local title = self:WeightlessRandom(self.data.job_titles[title_group])
-				if not title then
-				    logError(globals.error_types.DATA, "No possible titles for quest category \""..title_group.."\"")
-				end
-				newJob.Title = title or ""
+    if title then newJob.Title = title
+    else rollTitle(newJob) end
 
-				-- add finished product
-				table.insert(self.root.boards[board_id], newJob)
-				--increment guest count if necessary
-				if globals.job_types[job_type].has_guest then
-					guest_count[zone] = guest_count[zone] or 0
-					guest_count[zone] = guest_count[zone] +1
-				end
+    return newJob
+end
 
-				-- remove used destination data
-				table.remove(destinations.floors_allowed[zone], dest2_index)
-				if #destinations.floors_allowed[zone] <= 0 then
-					destinations.floors_allowed[zone] = nil
-					table.remove(destinations.destinations, zone_index)
-				end
-			end
-		end
-	end
+function library:AddJobToBoard(board_id, job)
+    job.BackReference = board_id
+    table.insert(self.root.boards[board_id], job)
 end
 
 --- Runs the script responsible for interacting with a quest board.
 --- It will first display a menu where players can choose to check either the board or the taken list.
 --- @param board_id string the id of the board to interact with
 function library:BoardInteract(board_id)
-	local loop = true
-	while loop do
+    local choice = 1
+	while choice > 0 do
 		local job_selected = 1
-		local choice = menus.BoardSelection.run(self, board_id)
+		choice = menus.BoardSelection.run(self, board_id, choice)
 		if choice == 1 then
 			while true do
 				job_selected = menus.Board.run(self, board_id, job_selected)
 				if job_selected > 0 then
-					while true do
-						local action = menus.Job.run(self, board_id, job_selected)
-						if action == 1 then
-							self:TakeJob(board_id, job_selected)
-						else break end
-					end
+					local action = menus.Job.run(self, board_id, job_selected)
+					if action == 1 then
+						self:TakeJob(board_id, job_selected)
+					else break end
 				else break end
 			end
 		elseif choice == 2 then
@@ -2201,51 +2348,49 @@ function library:BoardInteract(board_id)
 			while not self:IsTakenListEmpty() do
 				job_selected = menus.Board.run(self, nil, job_selected)
 				if job_selected > 0 then
-					while true do
-						local action = menus.Job.run(self, nil, job_selected)
-						if action == 1 then
-							self:ToggleTakenJob(job_selected)
-						elseif action == 2 then
-							self:RemoveTakenJob(job_selected)
-							break
-						else break end
+					local action = menus.Job.run(self, nil, job_selected)
+					if action == 1 then
+						self:ToggleTakenJob(job_selected)
+					elseif action == 2 then
+						self:RemoveTakenJob(job_selected)
 					end
 				else break end
 			end
-		else
-			loop = false
 		end
 	end
 end
 
 --- Runs the callback script responsible for interacting with the taken list.
---- This function is built as a callback stack and only works if used while already inside a menu handling routine.
+--- This function is built as a callback chain and only works if used while already inside a menu handling routine.
 function library:OpenTakenMenuFromMain()
-	local exit_menu = false
-	local job_selected = 1
-	local continue = true
+    local job_selected = 1
 
-	local job_cb = function(index)
-		if index == 1 then
-			self:ToggleTakenJob(job_selected)
-		elseif index == 2 then
-			self:RemoveTakenJob(job_selected)
-			continue = false
-		else continue = false end
-	end
-	local board_cb = function(index)
-		job_selected = index
-		if job_selected > 0 then
-			continue = true
-			while continue do menus.Job.add(self, nil, job_selected, job_cb) end
-		else exit_menu = true end
-	end
+	local job_cb, board_cb
+    job_cb = function(index)
+        if index == 1 then
+            self:ToggleTakenJob(job_selected)
+            _MENU:RemoveMenu()
+            menus.Board.reset(self, nil, board_cb, job_selected)
+            menus.Job.add(self, nil, job_selected, job_cb)
+        elseif index == 2 then
+            self:RemoveTakenJob(job_selected)
+            _MENU:RemoveMenu()
+            menus.Board.reset(self, nil, board_cb, job_selected)
+        else
+            _MENU:RemoveMenu()
+        end
+    end
+    board_cb = function(index)
+        job_selected = index
+        if job_selected > 0 then
+            menus.Job.add(self, nil, job_selected, job_cb)
+        else
+            _MENU:RemoveMenu()
+        end
+    end
 
-	while not self:IsTakenListEmpty() do
-		if exit_menu then break end
-		menus.Board.add(self, nil, board_cb, job_selected)
-	end
-	if self:IsTakenListEmpty() then _MENU:ClearMenus() end
+    menus.Board.add(self, nil, board_cb, job_selected)
+    if self:IsTakenListEmpty() then _MENU:ClearMenus() end
 end
 
 
@@ -2560,7 +2705,7 @@ function library:EnterDungeonAddJobEscorts(zone_id, escort_jobs)
     for idx, job in ipairs(escort_jobs) do
         local nickname = job.Client.Nickname or ""
         local mId = self:TableToMonsterID(job.Client)
-        local diff = self.data.num_to_difficulty[job.Difficulty]
+        local diff = self:NumToDifficulty(job.Difficulty)
         local level = self.data.difficulty_data[diff].escort_level
         local dungeon_default = not level
         if dungeon_default then level = zone_summary.Level end
@@ -2613,6 +2758,7 @@ end
 --- Its return value should itself be returned by COMMON.ExitDungeonMissionCheckEx
 --- Please pass all of the function's parameters to this one, in order.
 function library:ExitDungeonMissionCheckEx(result, _, zone, segment)
+	local resultTypes = RogueEssence.Data.GameProgress.ResultType
     --reset the escort status
     _DATA.Save.ActiveTeam.Guests:Clear()
     if self.data.guests_take_up_space then
@@ -2620,7 +2766,7 @@ function library:ExitDungeonMissionCheckEx(result, _, zone, segment)
         self.root.escort_jobs = 0
     end
 
-    if result == RogueEssence.Data.GameProgress.ResultType.Cleared then
+    if result == resultTypes.Cleared then
         MissionGen.root.dungeon_progress[zone] = MissionGen.root.dungeon_progress[zone] or {}
         MissionGen.root.dungeon_progress[zone][segment] = true
     end
@@ -2636,7 +2782,6 @@ function library:ExitDungeonMissionCheckEx(result, _, zone, segment)
         return false
     end
 
-
     for i = GAME:GetPlayerBagCount() - 1, 0, -1 do
         if isItemJobTarget(GAME:GetPlayerBagItem(i)) then
             GAME:TakePlayerBagItem(i)
@@ -2650,7 +2795,16 @@ function library:ExitDungeonMissionCheckEx(result, _, zone, segment)
         end
     end
 
-    self:UpdateBoards()
+    --reset all job completion data TODO if the day ended badly
+    if result == resultTypes.Failed or result == resultTypes.Downed
+        or result == resultTypes.TimedOut or result == resultTypes.GaveUp then
+        MissionGen.root.mission_flags.MissionCompleted = false
+        for _, job in ipairs(self.root.taken) do
+            job.Completion = globals.completion.NotCompleted
+        end
+    	self:UpdateBoards()
+    end
+
     if MissionGen.root.mission_flags.MissionCompleted then
 	    resetAnims()
         COMMON.EndDungeonDay(result, self.data.end_dungeon_day_destination.zone, -1, self.data.end_dungeon_day_destination.map, 0)
@@ -2673,6 +2827,7 @@ end
 --- It takes the job data table and the GroundChar npcs as arguments.
 function library:PlayJobsCompletedCutscene(callback)
     local index = 1
+    self.temp = self.temp or {}
     if self.temp.reward_job_index then index = self.temp.reward_job_index end
 	local CurrentZone = _ZONE.CurrentZoneID
     local CurrentMap = _ZONE.CurrentMapID.ID
@@ -2696,7 +2851,9 @@ function library:PlayJobsCompletedCutscene(callback)
     end
 	self.root.mission_flags.MissionCompleted = false
 	self.temp.reward_job_index = nil
-	self.data.after_rewards_function()
+    self.data.after_rewards_function()
+	self:UpdateBoards()
+    GAME:CutsceneMode(false)
 end
 
 --- Meant to be called as part of a job reward callback, in all ground maps where there are job boards.
@@ -2709,7 +2866,7 @@ end
 ---@param line2? string the line to use for the second reward. Unused if there is no second reward. Must be already formatted.
 ---@return string[] #a list of ranks reached. If no rank-ups happened, the list will be empty
 function library:RewardPlayer(job, speaker, line1, line2)
-    local difficulty_data = self.data.difficulty_data[self.data.num_to_difficulty[job.Difficulty]]
+    local difficulty_data = self.data.difficulty_data[self:NumToDifficulty(job.Difficulty)]
     if job.RewardType == "client" then
         GAME:WaitFrames(20)
     	self:AwardChar(job, speaker)
@@ -2772,7 +2929,7 @@ function library:AwardChar(job, char, talk)
 
         local nickname = job.Client.Nickname or ""
         local mId = self:TableToMonsterID(job.Client)
-        local diff = self.data.num_to_difficulty[job.Difficulty]
+        local diff = self:NumToDifficulty(job.Difficulty)
         local level = self.data.difficulty_data[diff].escort_level
         local dungeon_default = not level
         if dungeon_default then level = zone_summary.Level end
@@ -2850,16 +3007,14 @@ function library:AwardExtra(amount)
     UI:ResetSpeaker(false) --disable text noise
     UI:SetCenter(true)
     SOUND:PlayFanfare("Fanfare/Item")
-    local reward_string = "[color=#00FFFF]" .. amount .. "[color]"
+    UI:WaitShowDialogue(STRINGS:Format(RogueEssence.StringKey(globals.keysEx.CUTSCENE_AWARD_EXTRA):ToLocal(), GAME:GetTeamName(), STRINGS:FormatKey(globals.keys.EXTRA_REWARD, amount)))
     if self.data.extra_reward_type == "exp" then
         --Reward EXP for your party
-        UI:WaitShowDialogue(STRINGS:Format(RogueEssence.StringKey(globals.keysEx.CUTSCENE_AWARD_EXTRA):ToLocal(), GAME:GetTeamName(), reward_string))
         local player_count = _DATA.Save.ActiveTeam.Players.Count
         for player_idx = 0, player_count - 1, 1 do
             TASK:WaitTask(GROUND:_HandoutEXP(_DATA.Save.ActiveTeam.Players[player_idx], amount))
         end
     elseif self.data.extra_reward_type == "rank" then
-        UI:WaitShowDialogue(STRINGS:Format(RogueEssence.StringKey(globals.keysEx.CUTSCENE_AWARD_EXTRA):ToLocal(), GAME:GetTeamName(), reward_string))
 
         --check if a rank up is needed
         local start_rank = _DATA.Save.ActiveTeam.Rank
@@ -2976,7 +3131,7 @@ function library:EscortReached(_, _, context, _)
                 _DUNGEON:RemoveChar(context.Target)
 
                 GAME:WaitFrames(50)
-                COMMON.AskMissionWarpOut()
+        		self:AskMissionWarpOut()
             else
                 UI:WaitShowDialogue(STRINGS:Format(RogueEssence.StringKey(globals.keysEx.ESCORT_UNAVAILABLE):ToLocal(), escortName))
 				context.Target.CharDir = oldDir
@@ -2996,7 +3151,8 @@ function library:RescueReached(_, _, context, _)
     local job = self.root.taken[context.Target.LuaData.JobReference]
     local tbl = context.Target.LuaData
     if tbl and tbl.JobReference then
-        local base_name = job.Target.Nickname or _DATA:GetMonster(job.Target.Species).Name:ToLocal()
+        local char = job.Target or job.Client
+        local base_name = char.Nickname or _DATA:GetMonster(char.Species).Name:ToLocal()
         GAME:SetCharacterNickname(context.Target, base_name)
 
         context.CancelState.Cancel = false
@@ -3053,15 +3209,18 @@ function library:GenerateJobInFloor(zoneContext, _, queue, _, _)
         end
     end
 
-	local prio_boss = self.data.dungeon_gen_steps_piority
+	local prio_boss = self.data.dungeon_boss_steps_piority
 	local prio_gen = self.data.dungeon_gen_steps_piority
-    local prio_npc = self.data.dungeon_npc_steps_piority
+	local prio_npc = self.data.dungeon_npc_steps_piority
 	if type(prio_boss) ~= "table" then prio_boss = {prio_boss} end
 	if type(prio_gen)  ~= "table" then prio_gen  = {prio_gen}  end
 	if type(prio_npc)  ~= "table" then prio_npc  = {prio_npc}  end
-	local priority_boss = RogueElements.Priority(LUA_ENGINE:MakeLuaArray(globals.ctypes.Integer, prio_gen))
-	local priority_gen  = RogueElements.Priority(LUA_ENGINE:MakeLuaArray(globals.ctypes.Integer, prio_gen))
-	local priority_npc  = RogueElements.Priority(LUA_ENGINE:MakeLuaArray(globals.ctypes.Integer, prio_npc))
+	--local priority_boss = RogueElements.Priority(LUA_ENGINE:MakeLuaArray(globals.ctypes.Integer, prio_boss))
+	--local priority_gen  = RogueElements.Priority(LUA_ENGINE:MakeLuaArray(globals.ctypes.Integer, prio_gen))
+	--local priority_npc  = RogueElements.Priority(LUA_ENGINE:MakeLuaArray(globals.ctypes.Integer, prio_npc))
+	local priority_boss = RogueElements.Priority(-11)
+	local priority_gen  = RogueElements.Priority(-6)
+	local priority_npc  = RogueElements.Priority(5, 2, 1)
     if escortMissions then
         activeEffect.OnDeaths:Add(priority_gen, RogueEssence.Dungeon.SingleCharScriptEvent("EscortDeathCheck", '{}'))
     end
@@ -3217,7 +3376,7 @@ function library:SpawnOutlaw(_, _, context, args)
                 if radius > minRadius and radius > lastradius and #spawn_candidates > 0 then break end
 
 
-                if not _ZONE.CurrentMap:TileBlocked(pos) and _ZONE.CurrentMap:GetCharAtLoc(pos) then
+                if not _ZONE.CurrentMap:TileBlocked(pos) and not _ZONE.CurrentMap:GetCharAtLoc(pos) then
 
                     local next_to_player_units = false
                     --don't spawn the outlaw directly next to the player or their teammates
@@ -3266,7 +3425,7 @@ function library:SpawnOutlaw(_, _, context, args)
 		end
         party_avg = party_tot // party_count
 
-        local diff = self.data.num_to_difficulty[job.Difficulty]
+        local diff = self:NumToDifficulty(job.Difficulty)
         local orig_level = self.data.difficulty_data[diff].outlaw_level
         local dungeon_default = not orig_level
     	local zone = _ZONE.CurrentZone
@@ -3306,7 +3465,7 @@ function library:SpawnOutlaw(_, _, context, args)
             tactic = _DATA:GetAITactic("boss")
         end
 
-        self.data.apply_ooutlaw_changes(new_mob)
+        self.data.apply_outlaw_changes(new_mob, job)
 
         if job.Type == "OUTLAW_ITEM" or job.Type == "OUTLAW_ITEM_UNK" then
             new_mob.EquippedItem = RogueEssence.Dungeon.InvItem(job.Item)
@@ -3340,6 +3499,9 @@ end
 --- Please pass all of the event's parameters to this function, in order.
 function library:OutlawFloor(owner, ownerChar, context, args)
     local outlaw = context.User
+    if outlaw == nil then
+    	return
+  	end
     local tbl = outlaw.LuaData
     if tbl and tbl.OutlawReference then
         local jobIndex = args.JobReference
@@ -3474,7 +3636,7 @@ function library:OutlawCheck(_, _, _, args)
 
         self.root.mission_flags.PriorMapSetting = _DUNGEON.ShowMap
         _DUNGEON.ShowMap = _DUNGEON.MinimapState.None
-        COMMON.AskMissionWarpOut()
+        self:AskMissionWarpOut()
     end
 end
 
@@ -3623,14 +3785,14 @@ function library:OutlawItemCheck(_, _, _, args)
         --Clear but remember minimap state
         self.root.mission_flags.PriorMapSetting = _DUNGEON.ShowMap
         _DUNGEON.ShowMap = _DUNGEON.MinimapState.None
-        COMMON.AskMissionWarpOut()
+        self:AskMissionWarpOut()
     end
 
     if job.Completion == globals.completion.NotCompleted then
         if self.root.mission_flags.OutlawItemState == 0 then --nothing done yet
             if self.root.mission_flags.OutlawDefeated then
                 self.root.mission_flags.OutlawItemState = 1
-                if job.Type "OUTLAW_ITEM_UNK" then
+                if job.Type == "OUTLAW_ITEM_UNK" then
                     GAME:WaitFrames(50)
                     UI:ResetSpeaker()
                     UI:WaitShowDialogue(STRINGS:Format(RogueEssence.StringKey(globals.keysEx.OUTLAW_ITEM_UNK_DEFEATED):ToLocal(), outlawName,item_name))
@@ -3639,7 +3801,7 @@ function library:OutlawItemCheck(_, _, _, args)
                 end
             elseif self.root.mission_flags.ItemPickedUp then
                 self.root.mission_flags.OutlawItemState = 2
-                if job.Type "OUTLAW_ITEM_UNK" then
+                if job.Type == "OUTLAW_ITEM_UNK" then
                     GAME:WaitFrames(50)
                     UI:ResetSpeaker()
                     UI:WaitShowDialogue(STRINGS:Format(RogueEssence.StringKey(globals.keysEx.OUTLAW_ITEM_UNK_RETRIEVED):ToLocal(), outlawName, item_name))
@@ -3704,7 +3866,7 @@ function library:ExplorationReached(_, _, context, args)
         RogueEssence.Dungeon.ExplorerTeam.MAX_TEAM_SLOTS = math.max(1, self.data.min_party_limit, self.root.previous_limit - self.root.escort_jobs)
 
         GAME:WaitFrames(50)
-        COMMON.AskMissionWarpOut()
+        self:AskMissionWarpOut()
     else
         UI:WaitShowDialogue(STRINGS:Format(RogueEssence.StringKey(globals.keysEx.ESCORT_UNAVAILABLE):ToLocal(), self:GetCharacterName(job.Client)))
     end
@@ -3731,7 +3893,7 @@ function library:MissionItemCheck(_, _, context, args)
 
             --Slight pause before asking to warp out
             GAME:WaitFrames(20)
-            COMMON.AskMissionWarpOut()
+            self:AskMissionWarpOut()
         end
 
         for i = 0, GAME:GetPlayerBagCount(), 1 do

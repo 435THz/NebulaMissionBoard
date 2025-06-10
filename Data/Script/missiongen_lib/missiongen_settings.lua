@@ -8,6 +8,7 @@
 -- explicitly in your project.
 
 --- @alias jobType "RESCUE_SELF"|"RESCUE_FRIEND"|"ESCORT"|"EXPLORATION"|"DELIVERY"|"LOST_ITEM"|"OUTLAW"|"OUTLAW_ITEM"|"OUTLAW_ITEM_UNK"|"OUTLAW_MONSTER_HOUSE"|"OUTLAW_FLEE"
+--- @alias rewardType "money"|"item"|"money_item"|"item_item"|"client"|"exclusive"
 --- @alias emotionType "Normal"|"Happy"|"Pain"|"Angry"|"Worried"|"Sad"|"Crying"|"Shouting"|"Teary-Eyed"|"Determined"|"Joyous"|"Inspired"|"Surprised"|"Dizzy"|"Special0"|"Special1"|"Sigh"|"Stunned"|"Special2"|"Special3"
 --- @alias AgentIDTable {Species:string, Form:integer|nil, Skin:string|nil, Gender:integer, Weight:integer|nil, Unique:boolean|nil}
 --- @alias Character any RogueEssence.Dungeon.Character
@@ -41,7 +42,7 @@ local settings = {
                 local root = library.root
                 local completed = 0
                 for _, segments in pairs(root.dungeon_progress) do
-                    for _, state in ipairs(segments) do
+                    for _, state in pairs(segments) do
                         if state then
                             completed = completed + 1
                             if completed>=3 then return true end
@@ -180,8 +181,8 @@ local settings = {
     --- You can change just about anything except its position and recruitability state. Its HP will also
     --- always be automatically set to full after this function is called.
     --- You will also be unable to change the EquippedItem of an "OUTLAW_ITEM" or "OUTLAW_ITEM_UNK" outlaw.
-    ---@type fun(outlaw_team:MonsterTeam, outlaw:Character, job:jobTable)
-    apply_outlaw_changes = function(outlaw_team, outlaw, job)
+    ---@type fun(outlaw:Character, job:jobTable)
+    apply_outlaw_changes = function(outlaw, job)
         local max_boost = PMDC.Data.MonsterFormData.MAX_STAT_BOOST
         outlaw.MaxHPBonus = math.min(outlaw.Level * max_boost // 64, max_boost);
         if job.Type == "OUTLAW_FLEE" then
@@ -198,7 +199,7 @@ local settings = {
     outlaw_music_name = "Outlaw.ogg",
     --- This is where dungeon difficulty is set. Quests can only generate for dungeons inside this list.
     --- Given the complexity of this structure, it is best generated using the "AddDungeonSection" function near the bottom of this file.
-    ---@type table<string, table<integer, {max_floor:integer, must_end:boolean, sections:{start:integer, difficulty:string}}>>
+    ---@type table<string, table<integer, {max_floor:integer, must_end:boolean, sections:{start:integer, difficulty:string}[]}>>
     dungeons = {},
     --- Jobs are sorted by dungeon, following this order. Missing dungeons are shoved at the bottom and sorted alphabetically.
     --- This list is automatically populated in call order when using the "AddDungeonSection" function near the bottom of this file.
@@ -272,7 +273,7 @@ local settings = {
     --- Supported reward types are: item, money, item_item, money_item, client, exclusive
     --- * weight: Chance of appearing. Set to 0 or delete altogether to stop a type of reward from being offered.
     --- * min_rank: optional. If set, this type of reward will only be offered if the job is this rank or higher.
-    ---@type {id:string, weight:integer, min_rank:string|nil}[]
+    ---@type {id:rewardType, weight:integer, min_rank:string|nil}[]
     reward_types = {
         {id = "item", weight = 6},
         {id = "money", weight = 2},
@@ -1563,6 +1564,11 @@ local settings = {
     --- Format: <job_type_id> = {<string_key>}
     --- * <job_type_id> = either the id of a job type defined inside "job_types", or the id of a special job type
     --- * <string_key> = the localization key used for the title. The localized strings are fetched from the Menu Text list (strings.resx)
+    ---
+    --- Localization placeholders:
+    --- * {0}: target (or client, if there is no target)
+    --- * {1}: dungeon
+    --- * {2}: item
     --- @type table<string,string[]>
     job_titles =  {
         RESCUE_SELF = {
@@ -1952,7 +1958,7 @@ local settings = {
                 {client = {Species = "lanturn", Gender = 1}, target = {Species = "lumineon", Gender = 2}, flavor = "MISSION_BODY_SPECIAL_LOVER_012"}
             },
             TIER_HIGH = {
-                {client = {Species = "tyranitar", Gender = 1}, target = {Species = "altaria", Gender = 2}, flavor = "MISSION_BODY_SPECIAL_LOVER_013"},--reference to an old idea i had
+                {client = {Species = "tyranitar", Gender = 1}, target = {Species = "altaria", Gender = 2}, flavor = "MISSION_BODY_SPECIAL_LOVER_013"},--reference to an old idea palika had
                 {client = {Species = "gyarados", Gender = 1}, target = {Species = "milotic", Gender = 2}, flavor = "MISSION_BODY_SPECIAL_LOVER_014"},
                 {client = {Species = "gardevoir", Gender = 2}, target = {Species = "gallade", Gender = 1}, flavor = "MISSION_BODY_SPECIAL_LOVER_015"}
             }
@@ -2113,13 +2119,13 @@ function AddDungeonSection(zone, segment, start, difficulty, finish, must_end)
         if not settings.dungeon_order._count then
             settings.dungeon_order._count = 0
             for _, val in pairs(settings.dungeon_order) do settings.dungeon_order._count = math.max(settings.dungeon_order._count, val) end
-            settings.dungeon_order._count = settings.dungeon_order._count +1
-            settings.dungeon_order[zone] = settings.dungeon_order._count
         end
+        settings.dungeon_order._count = settings.dungeon_order._count +1
+        settings.dungeon_order[zone] = settings.dungeon_order._count
     end
     settings.dungeons[zone] = settings.dungeons[zone] or {}
-    settings.dungeons[zone][segment] = settings.dungeons[zone][segment] or {max_floor = finish-1, must_end = must_end, sections = {}}
-    table.insert(settings.dungeons[zone][segment].sections, {start = start-1, difficulty = difficulty})
+    settings.dungeons[zone][segment] = settings.dungeons[zone][segment] or {max_floor = finish, must_end = must_end, sections = {}}
+    table.insert(settings.dungeons[zone][segment].sections, {start = start, difficulty = difficulty})
 end
 
 AddDungeonSection("tropical_path", 0, 3, "F", 4)
@@ -2149,10 +2155,9 @@ AddDungeonSection("sickly_hollow", 0, 13, "STAR_1")
 AddDungeonSection("secret_garden", 0, 15, "STAR_3", 40, false)
 AddDungeonSection("secret_garden", 0, 20, "STAR_4")
 AddDungeonSection("secret_garden", 0, 25, "STAR_5")
-AddDungeonSection("secret_garden", 0, 29, "STAR_6")
-AddDungeonSection("secret_garden", 0, 32, "STAR_7")
-AddDungeonSection("secret_garden", 0, 35, "STAR_8")
-AddDungeonSection("secret_garden", 0, 38, "STAR_9")
+AddDungeonSection("secret_garden", 0, 30, "STAR_6")
+AddDungeonSection("secret_garden", 0, 34, "STAR_7")
+AddDungeonSection("secret_garden", 0, 38, "STAR_8")
 AddDungeonSection("flyaway_cliffs", 0, 6, "C", 10)
 AddDungeonSection("fertile_valley", 0, 5, "D", 8)
 AddDungeonSection("fertile_valley", 1, 1, "C", 5)

@@ -25,7 +25,7 @@ end
     RecruitTools:OnDungeonFloorEnd()
       When leaving a dungeon floor this is called.
 ---------------------------------------------------------------]]
-function MissionTools:OnDungeonFloorEnd(_, _)
+function MissionTools:OnDungeonFloorEnd()
     assert(self, 'MissionTools:OnDungeonFloorEnd() : self is null!')
     local zone, segment = _ZONE.CurrentZoneID, _ZONE.CurrentMapID.Segment
     --Mark the current dungeon as visited
@@ -39,7 +39,7 @@ end
 ---------------------------------------------------------------]]
 function MissionTools:OnAddMenu(menu)
     local labels = RogueEssence.Menu.MenuLabel
-    if SV.MissionsEnabled and menu:HasLabel() then
+    if menu:HasLabel() then
         if RogueEssence.GameManager.Instance.CurrentScene == RogueEssence.Dungeon.DungeonScene.Instance then
             if menu.Label == labels.OTHERS_MENU then
                 local choices = menu:ExportChoices()
@@ -74,9 +74,10 @@ end
 ---Summary
 -- Subscribe to all channels this service wants callbacks from
 function MissionTools:Subscribe(med)
-  med:Subscribe("MissionTools", EngineServiceEvents.NewGame, function(_, _) self.OnSaveLoad(self) end )
-  med:Subscribe("MissionTools", EngineServiceEvents.LoadSavedData, function(_, _) self.OnSaveLoad(self) end )
-  med:Subscribe("MissionTools", EngineServiceEvents.AddMenu, function(_, args) self.OnAddMenu(self, args[0]) end )
+    med:Subscribe("MissionTools", EngineServiceEvents.NewGame, function(_, _) self.OnSaveLoad(self) end)
+    med:Subscribe("MissionTools", EngineServiceEvents.LoadSavedData, function(_, _) self.OnSaveLoad(self) end)
+    med:Subscribe("MissionTools", EngineServiceEvents.AddMenu, function(_, args) self.OnAddMenu(self, args[0]) end)
+    med:Subscribe("MissionTools", EngineServiceEvents.DungeonFloorExit, function(_, _) self.OnDungeonFloorEnd(self) end)
 end
 
 ---Summary

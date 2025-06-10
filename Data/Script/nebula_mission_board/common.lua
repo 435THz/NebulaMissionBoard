@@ -2,7 +2,7 @@
     common.lua
     A collection of frequently used functions and values!
 ]] --
-require 'enable_mission_board.common_vars'
+require 'nebula_mission_board.common_vars'
 MissionGen = require("missiongen_lib.missiongen_lib")
 
 function COMMON.ShowDestinationMenu(dungeon_entrances, ground_entrances, force_list, speaker, confirm_msg)
