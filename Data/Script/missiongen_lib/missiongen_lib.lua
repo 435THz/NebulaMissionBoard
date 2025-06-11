@@ -610,7 +610,7 @@ local deliveryReachedFlow = function(context, job, oldDir)
             --Clear but remember minimap state
             library.root.mission_flags.PriorMapSetting = _DUNGEON.ShowMap
             _DUNGEON.ShowMap = _DUNGEON.MinimapState.None
-            if inv_slot.IsEquipped then
+            if not inv_slot.IsEquipped then
                 GAME:TakePlayerBagItem(inv_slot.Slot)
             else
                 GAME:TakePlayerEquippedItem(inv_slot.Slot)
@@ -1127,7 +1127,7 @@ end
 local getFloorAverage = function()
     local foes = LUA_ENGINE:MakeList(_ZONE.CurrentMap:IterateCharacters(false, true))
     local total = 0
-    if foes > 0 then
+    if foes.Count > 0 then
         for char in luanet.each(foes) do
             total = total + char.Level
         end
@@ -1686,8 +1686,8 @@ function library:WeightedRandomExclude(list, exclude, replay_sensitive, alt_id)
 	if weight <= 0 then return end
 	local roll = -1
 	if replay_sensitive
-	then roll = math.random(1, weight)
-	else roll = _DATA.Save.Rand:Next(weight)+1 --this rng getter includes 0 but doesn't include the max value so +1 it is
+	then roll = _DATA.Save.Rand:Next(weight)+1 --this rng getter includes 0 but doesn't include the max value so +1 it is
+	else roll = math.random(1, weight)
 	end
 
 	weight = 0
@@ -1715,8 +1715,8 @@ function library:WeightlessRandom(list, replay_sensitive)
 	if #list == 0 then return end
 	local roll = -1
 	if replay_sensitive
-	then roll = math.random(1, #list)
-	else roll = _DATA.Save.Rand:Next(#list)+1 --this one includes 0 but doesn't include the max value so +1 it is
+	then roll = _DATA.Save.Rand:Next(#list)+1 --this one includes 0 but doesn't include the max value so +1 it is
+	else roll = math.random(1, #list)
 	end
 	return list[roll], roll
 end
@@ -2095,7 +2095,9 @@ local rollCharacters = function(job, client, target)
                         error("[" .. globals.error_types.DATA .. "] Setting \"enforcer_chance\" has no possible value for tier \"" .. tier .. "\"")
                         break
                     end
-                    if roll.id == globals.keywords.AGENT and roll.index and roll.index > 0 and roll.index <= #library.data.law_enforcement.AGENT then
+                    if roll.id == globals.keywords.OFFICER then
+                        characters[i] = library.data.law_enforcement.OFFICER --[[@as monsterIDTable]]
+                    elseif roll.id == globals.keywords.AGENT and roll.index and roll.index > 0 and roll.index <= #library.data.law_enforcement.AGENT then
                         characters[i] = library.data.law_enforcement.AGENT[roll.index] --[[@as monsterIDTable]]
                     else
                         characters[i] = roll.id
@@ -2334,13 +2336,13 @@ function library:BoardInteract(board_id)
 		local job_selected = 1
 		choice = menus.BoardSelection.run(self, board_id, choice)
 		if choice == 1 then
-			while true do
+			while not self:IsBoardEmpty(board_id) do
 				job_selected = menus.Board.run(self, board_id, job_selected)
 				if job_selected > 0 then
 					local action = menus.Job.run(self, board_id, job_selected)
 					if action == 1 then
 						self:TakeJob(board_id, job_selected)
-					else break end
+					end
 				else break end
 			end
 		elseif choice == 2 then
@@ -2762,7 +2764,7 @@ function library:ExitDungeonMissionCheckEx(result, _, zone, segment)
     --reset the escort status
     _DATA.Save.ActiveTeam.Guests:Clear()
     if self.data.guests_take_up_space then
-        RogueEssence.Dungeon.ExplorerTeam.MAX_TEAM_SLOTS = self.root.previous_limit
+        RogueEssence.Dungeon.ExplorerTeam.MAX_TEAM_SLOTS = self.root.previous_limit or RogueEssence.Dungeon.ExplorerTeam.MAX_TEAM_SLOTS
         self.root.escort_jobs = 0
     end
 
@@ -2898,7 +2900,6 @@ function library:RewardPlayer(job, speaker, line1, line2)
         end
     end
     local ranks = self:AwardExtra(difficulty_data.extra_reward)
-    GAME:WaitFrames(20)
     return ranks
 end
 
@@ -3485,8 +3486,7 @@ function library:SpawnOutlaw(_, _, context, args)
         new_mob:RefreshTraits()
         _ZONE.CurrentMap:UpdateExploration(new_mob)
 
-        local base_name = RogueEssence.Data.DataManager.Instance.DataIndices
-        [RogueEssence.Data.DataManager.DataType.Monster]:Get(new_mob.BaseForm.Species).Name:ToLocal()
+        local base_name = RogueEssence.Data.DataManager.Instance.DataIndices[RogueEssence.Data.DataManager.DataType.Monster]:Get(new_mob.BaseForm.Species).Name:ToLocal()
         GAME:SetCharacterNickname(new_mob, job.Client.Nickname or base_name)
         return new_mob
     end
@@ -3690,7 +3690,7 @@ end
 function library:MonsterHouseOutlawCheck(_, _, _, args)
 	local jobIndex = args.JobReference
 	local job = self.root.taken[jobIndex]
-	local outlaw_name = _DATA:GetMonster(job.Target):GetColoredName()
+	local outlaw_name = self:GetCharacterName(job.Target)
 
     if job.Completion == globals.completion.NotCompleted then
         local found_outlaw, found_goon = false, false
@@ -3745,7 +3745,7 @@ function library:OutlawItemCheckItem(_, _, _, args)
         local jobIndex = args.JobReference
         local job = self.root.taken[jobIndex]
 
-        for i = 0, GAME:GetPlayerBagCount(), 1 do
+        for i = 0, GAME:GetPlayerBagCount()-1, 1 do
             local invItem = GAME:GetPlayerBagItem(i)
             if invItem.ID == job.Item and invItem.HiddenValue == tostring(jobIndex) then
                 self.root.mission_flags.ItemPickedUp = true
@@ -3753,7 +3753,7 @@ function library:OutlawItemCheckItem(_, _, _, args)
             end
         end
 		if not self.root.mission_flags.ItemPickedUp then
-			for i = 0, GAME:GetPlayerPartyCount(), 1 do
+			for i = 0, GAME:GetPlayerPartyCount()-1, 1 do
 				local equipItem = GAME:GetPlayerEquippedItem(i)
 				if equipItem and equipItem.ID == job.Item and equipItem.HiddenValue == tostring(jobIndex) then
 					self.root.mission_flags.ItemPickedUp = true
@@ -3876,7 +3876,7 @@ end
 --- It is called on turn end during a LOST_ITEM job, and checks if item has been retrieved.
 --- When it is, this function will display a message, and then the player will be prompted to leave.
 --- Please pass all of the event's parameters to this function, in order.
-function library:MissionItemCheck(_, _, context, args)
+function library:MissionItemCheck(_, _, _, args)
     if not self.root.mission_flags.ItemPickedUp then
         local jobIndex = args.JobReference
         local job = self.root.taken[jobIndex]
@@ -3886,7 +3886,7 @@ function library:MissionItemCheck(_, _, context, args)
             self.root.mission_flags.MissionCompleted = true
             GAME:WaitFrames(70)
             UI:ResetSpeaker()
-            UI:WaitShowDialogue(STRINGS:Format(RogueEssence.StringKey(globals.keysEx.LOST_ITEM_RETRIEVED):ToLocal(), self:GetCharacterName(job.Client), context.Item:GetDungeonName()))
+            UI:WaitShowDialogue(STRINGS:Format(RogueEssence.StringKey(globals.keysEx.LOST_ITEM_RETRIEVED):ToLocal(), self:GetCharacterName(job.Client), self:GetItemName(job.Item)))
             --Clear but remember minimap state
             self.root.mission_flags.PriorMapSetting = _DUNGEON.ShowMap
             _DUNGEON.ShowMap = _DUNGEON.MinimapState.None
@@ -3896,7 +3896,7 @@ function library:MissionItemCheck(_, _, context, args)
             self:AskMissionWarpOut()
         end
 
-        for i = 0, GAME:GetPlayerBagCount(), 1 do
+        for i = 0, GAME:GetPlayerBagCount()-1, 1 do
             local invItem = GAME:GetPlayerBagItem(i)
             if invItem.ID == job.Item and invItem.HiddenValue == tostring(jobIndex) then
                 itemFound()
@@ -3904,7 +3904,7 @@ function library:MissionItemCheck(_, _, context, args)
             end
         end
         if not self.root.mission_flags.ItemPickedUp then
-            for i = 0, GAME:GetPlayerPartyCount(), 1 do
+            for i = 0, GAME:GetPlayerPartyCount()-1, 1 do
                 local equipItem = GAME:GetPlayerEquippedItem(i)
                 if equipItem and equipItem.ID == job.Item and equipItem.HiddenValue == tostring(jobIndex) then
                     itemFound()

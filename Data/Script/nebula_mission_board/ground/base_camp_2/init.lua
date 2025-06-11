@@ -85,12 +85,10 @@ function base_camp_2_bulletin.Hand_In_Missions(job, npcs)
     local reward_line2 = STRINGS:Format(STRINGS.MapStrings['Mission_Generic_Reward_2'])
 
     if MissionGen:JobTypeIsLawEnforcement(job.Type) then
-        UI:WaitShowDialogue(STRINGS:Format(STRINGS.MapStrings['Outlaw_Capture_Cutscene_001'],
-            MissionGen:GetCharacterName(job.Target)))
+        UI:WaitShowDialogue(STRINGS:Format(STRINGS.MapStrings['Outlaw_Capture_Cutscene_001'], MissionGen:GetCharacterName(job.Target)))
         GAME:WaitFrames(20)
         reward_line1 = STRINGS:Format(STRINGS.MapStrings['Outlaw_Capture_Cutscene_002'])
         reward_line2 = STRINGS:Format(STRINGS.MapStrings['Outlaw_Capture_Cutscene_003'])
-        UI:WaitShowDialogue()
     elseif MissionGen:JobTypeIsOutlaw(job.Type) then
         UI:WaitShowDialogue(STRINGS:Format(STRINGS.MapStrings['Outlaw_Retrieve_Cutscene'],
             MissionGen:GetItemName(job.Item)))

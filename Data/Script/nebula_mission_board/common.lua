@@ -160,3 +160,21 @@ function COMMON.EnterDungeonMissionCheck(zoneId, segmentID)
     end
     MissionGen:PrintEscortAdd(added_names)
 end
+
+function COMMON.LibraryTest()
+	MissionGen:FlushBoards()
+	local floor = 1
+    for j_type, data in pairs(MissionGen.globals.job_types) do
+    	---@cast j_type jobType
+    	if data.target_outlaw then
+    	elseif j_type == "RESCUE_SELF" then
+        elseif j_type == "RESCUE_FRIEND" then
+    	elseif j_type == "DELIVERY" then
+        elseif j_type == "LOST_ITEM" then
+        else
+			local job = MissionGen:MakeNewJob("guildmaster_trail", 0, floor, j_type)
+			MissionGen:AddJobToBoard("quest_board", job)
+			floor = floor + 1
+		end
+	end
+end

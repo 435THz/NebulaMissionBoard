@@ -291,7 +291,7 @@ function JobMenu:initialize(library, board_id, job_index, callback)
     local choice_str = STRINGS:FormatKey(self.library.globals.keys.BUTTON_TAKE)
     if not board_id then
         --if there is an external condition, lock quest and do not allow its activation
-        local enabled = not self.library:HasExternalEvents(self.job.Zone)
+        local enabled = not self.library:HasExternalEvents(self.job.Zone) and self:isDestFree()
         if self.job.Taken and enabled then choice_str = STRINGS:FormatKey(self.library.globals.keys.BUTTON_SUSPEND) end
         table.insert(choices, {choice_str, enabled, function() self:choose(1) end})
         table.insert(choices, {STRINGS:FormatKey(self.library.globals.keys.BUTTON_DELETE), true, function() self:choose(2) end})
@@ -303,6 +303,18 @@ function JobMenu:initialize(library, board_id, job_index, callback)
 
     self.job_window = self:GenerateSummary()
     self.menu.SummaryMenus:Add(self.job_window) --self.menu.LowerSummaryMenus:Add(self.job_window)
+end
+
+function JobMenu:isDestFree()
+    for _, job in ipairs(self.library.root.taken) do
+        ---@cast job jobTable
+        if job.Zone == self.job.Zone and
+            job.Segment == self.job.Segment and
+            job.Floor == self.job.Floor then
+            return true
+        end
+    end
+	return false
 end
 
 --- Confirmation function that runs the stored callback and closes the menu.
