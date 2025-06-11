@@ -1,2 +1,2 @@
-# MissionGenLibTutorial
- PMDO Mission Gen Library tutorial mod
+# Nebula's Mission Board Mod
+Nebula's PMDO Mission Gen Library tutorial mod
