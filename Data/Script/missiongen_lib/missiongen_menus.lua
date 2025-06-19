@@ -90,6 +90,7 @@ function BoardMenu:initialize(library, board_id, callback, start_choice)
     self.taken_count = self.library:GetTakenCount()
     if self.pages <= 0 then
         _MENU:RemoveMenu()
+        return
     end
 
     self:DrawBoardStatic()
@@ -113,7 +114,6 @@ function BoardMenu:GenerateOptions()
             taken_string = 'true'
         end
 
-        local floor_str =  STRINGS:Format(floor_pattern, tostring(job.Floor))
         local difficulty = self.library:GetDifficultyString(job)
         -- This is the whole reason why we need a shallowcopy function for the mission data: we can't guarantee the structures point to the same job after save and load
         local icon = ""
@@ -128,7 +128,8 @@ function BoardMenu:GenerateOptions()
             else icon = STRINGS:Format("\\uE110")--paper
             end
         end
-        local location = zone_str .. " " .. floor_str
+        local location = zone_str
+		if not job.HideFloor then location = location.. " " .. STRINGS:Format(floor_pattern, tostring(job.Floor)) end
 
         local color = Color.White
         --color everything red if job is taken and this is a job board
@@ -206,7 +207,10 @@ function BoardMenu:MoveCursor(index)
 end
 
 function BoardMenu:Update(input)
-    assert(self, "BaseState:Begin(): Error, self is nil!")
+    if self.pages <= 0 then
+        _MENU:RemoveMenu()
+        return
+    end
     if input:JustPressed(RogueEssence.FrameInput.InputType.Confirm) then
         --open the selected job menu
         self.choices[self.current]:OnConfirm()
@@ -291,7 +295,7 @@ function JobMenu:initialize(library, board_id, job_index, callback)
     local choice_str = STRINGS:FormatKey(self.library.globals.keys.BUTTON_TAKE)
     if not board_id then
         --if there is an external condition, lock quest and do not allow its activation
-        local enabled = not self.library:HasExternalEvents(self.job.Zone) and self:isDestFree()
+        local enabled = not self.library:HasExternalEvents(self.job.Zone) and not self.library:IsJobDestinationInTaken(self.job, true)
         if self.job.Taken and enabled then choice_str = STRINGS:FormatKey(self.library.globals.keys.BUTTON_SUSPEND) end
         table.insert(choices, {choice_str, enabled, function() self:choose(1) end})
         table.insert(choices, {STRINGS:FormatKey(self.library.globals.keys.BUTTON_DELETE), true, function() self:choose(2) end})
@@ -302,19 +306,7 @@ function JobMenu:initialize(library, board_id, job_index, callback)
     self.menu = RogueEssence.Menu.ScriptableSingleStripMenu(232, 138, 24, choices, 0, function() self:choose(-1) end)
 
     self.job_window = self:GenerateSummary()
-    self.menu.SummaryMenus:Add(self.job_window) --self.menu.LowerSummaryMenus:Add(self.job_window)
-end
-
-function JobMenu:isDestFree()
-    for _, job in ipairs(self.library.root.taken) do
-        ---@cast job jobTable
-        if job.Zone == self.job.Zone and
-            job.Segment == self.job.Segment and
-            job.Floor == self.job.Floor then
-            return true
-        end
-    end
-	return false
+    self.menu.SummaryMenus:Add(self.job_window) --TODO self.menu.LowerSummaryMenus:Add(self.job_window)
 end
 
 --- Confirmation function that runs the stored callback and closes the menu.
@@ -325,7 +317,7 @@ end
 
 function JobMenu:GenerateSummary()
     local summary = RogueEssence.Menu.SummaryMenu(RogueElements.Rect(32, 32, 256, 176))
-    local zone_str = self.library:CreateColoredSegmentString(self.job.Zone, self.job.Segment)
+    local dungeon = self.library:CreateColoredSegmentString(self.job.Zone, self.job.Segment)
     local target, item = "[color=#FF0000]TARGET[color]", "[color=#FF0000]ITEM[color]"
     if self.job.Target then target = self.library:GetCharacterName(self.job.Target) end
     if self.job.Item and self.job.Item ~= "" then item = self.library:GetItemName(self.job.Item) end
@@ -341,7 +333,8 @@ function JobMenu:GenerateSummary()
     summary.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.library.globals.keys.JOB_ACCEPTED, #self.library.root.taken, self.library.data.taken_limit), RogueElements.Loc(96, summary.Bounds.Height - 20)))
 
     summary.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.job.Flavor[1], target, dungeon, item), RogueElements.Loc(16, 24)))
-    summary.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.job.Flavor[2], target, dungeon, item), RogueElements.Loc(16, 36)))
+    if self.job.Flavor[2] and self.job.Flavor[2] ~= "" then
+    summary.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.job.Flavor[2], target, dungeon, item), RogueElements.Loc(16, 36))) end
     summary.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.library.globals.keys.JOB_CLIENT), RogueElements.Loc(16, 54)))
     summary.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.library.globals.keys.JOB_OBJECTIVE), RogueElements.Loc(16, 68)))
     summary.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.library.globals.keys.JOB_PLACE), RogueElements.Loc(16, 82)))
@@ -419,6 +412,7 @@ function DungeonJobList:GenerateEntries()
     local list = {}
     local oth_segments = {}
     local oth_segments_list = {}
+    local _, floor_pattern = self.library:CreateColoredSegmentString(self.zone, self.segment)
 
     local jobs = self.library.root.taken
     for _, job in ipairs(jobs) do
@@ -431,7 +425,6 @@ function DungeonJobList:GenerateEntries()
 
                 local floor = ""
                 if not job.HideFloor then
-                    local _, floor_pattern = self.library:CreateColoredSegmentString(self.zone, self.segment)
                     floor = STRINGS:Format(floor_pattern, job.Floor)
                 end
 
@@ -456,28 +449,29 @@ function DungeonJobList:GenerateEntries()
     if #list <= 0 then
         if _DATA.Save.Rescue ~= nil and _DATA.Save.Rescue.Rescuing then
             if self.segment ~= _DATA.Save.Rescue.SOS.Goal.StructID.Segment then
-                local seg_name = self.library:CreateColoredSegmentString(self.zone,
-                    _DATA.Save.Rescue.SOS.Goal.StructID.Segment)
+                local seg_name = self.library:CreateColoredSegmentString(self.zone, _DATA.Save.Rescue.SOS.Goal.StructID.Segment)
                 local message = STRINGS:FormatKey(self.library.globals.keys.REACH_SEGMENT, seg_name)
-                table.insert(list, { icon = nil, floor = nil, message = message })
+                table.insert(list, {icon = nil, floor = nil, message = message})
             else
-                local team_to_save = String.Format("[color=#FFA5FF]{0}[color]", _DATA.Save.Rescue.SOS.TeamName)
+                local team_to_save = STRINGS:Format("[color=#FFA5FF]{0}[color]", _DATA.Save.Rescue.SOS.TeamName)
                 local message = STRINGS:FormatKey(self.library.globals.keys.RESCUE_SELF, team_to_save)
-                table.insert(list, { icon = nil, floor = nil, message = message })
+                floor = STRINGS:Format(floor_pattern, _DATA.Save.Rescue.SOS.Goal.StructID.ID+1)
+                table.insert(list, {icon = STRINGS:Format("\\uE10F"), floor = floor, message = message})
             end
         else
-            local conditions = self.library:GetExternalConditions(self.zone)
+        	local missing = "[color=#FF0000]???[color]"
+            local conditions = self.library:GetExternalEvents(self.zone)
             for _, condition in ipairs(conditions) do
                 if condition.message_key then
-                    local icon = condition.icon or nil
+                    local icon = STRINGS:Format(condition.icon) or nil
                     local argtable = {}
                     if condition.message_args then argtable = condition.message_args(self.zone) end
                     table.insert(list,
                         {
                             icon = icon,
                             floor = nil,
-                            message = STRINGS:FormatKey(conditions.message_key, argtable[1] or "",
-                                argtable[2] or "", argtable[3] or "", argtable[4] or "", argtable[5] or ""),
+                            message = STRINGS:FormatKey(condition.message_key, argtable[1] or missing,
+                                argtable[2] or missing, argtable[3] or missing, argtable[4] or missing, argtable[5] or missing),
                         })
                 end
             end
@@ -510,13 +504,22 @@ function DungeonJobList:DrawMenu()
     --populate jobs that are in this dungeon
     local start  = (self.page-1) * self.MAX_ENTRIES + 1
     local finish = math.min(self.page * self.MAX_ENTRIES, #self.entries)
-    for i = start, finish, 1 do
+	local icon_x, floor_x, msg_x = 16, 16, 16
+    for i = finish, start, -1 do
         local count = (i-1) % self.MAX_ENTRIES
         local entry = self.entries[i]
 
-        if entry.icon    then self.menu.Elements:Add(RogueEssence.Menu.MenuText(entry.icon, RogueElements.Loc(16, 24 + 14 * count)))    end
-        if entry.floor   then self.menu.Elements:Add(RogueEssence.Menu.MenuText(entry.floor, RogueElements.Loc(28, 24 + 14 * count)))   end
-        if entry.message then self.menu.Elements:Add(RogueEssence.Menu.MenuText(entry.message, RogueElements.Loc(60, 24 + 14 * count))) end
+        if entry.icon then
+        	if icon_x == floor_x then floor_x, msg_x = floor_x + 12, msg_x + 12 end
+            self.menu.Elements:Add(RogueEssence.Menu.MenuText(entry.icon,    RogueElements.Loc(icon_x,  24 + 14 * count)))
+        end
+        if entry.floor then
+        	if floor_x == msg_x then msg_x = msg_x + 32 end
+            self.menu.Elements:Add(RogueEssence.Menu.MenuText(entry.floor,   RogueElements.Loc(floor_x, 24 + 14 * count)))
+        end
+        if entry.message then
+            self.menu.Elements:Add(RogueEssence.Menu.MenuText(entry.message, RogueElements.Loc(msg_x,   24 + 14 * count)))
+        end
     end
 end
 

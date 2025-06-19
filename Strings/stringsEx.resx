@@ -278,7 +278,7 @@
     <value>The {1} was sent to storage.</value>
     <comment></comment>  </data>
   <data name="MISSION_COMPLETED_CUTSCENE_AWARD_CHAR" xml:space="preserve">
-    <value>The adventurous exploits of Team {0} are an inspiration to me![br] Please, let me become a member of your team!</value>
+    <value>The adventurous exploits of Team {0} are an inspiration to me![br]Please, let me become a member of your team!</value>
     <comment></comment>  </data>
   <data name="MISSION_COMPLETED_CUTSCENE_AWARD_CHAR_PROMPT" xml:space="preserve">
     <value>Accept {1} as a team member?</value>

@@ -10,6 +10,7 @@
 --- @alias jobType "RESCUE_SELF"|"RESCUE_FRIEND"|"ESCORT"|"EXPLORATION"|"DELIVERY"|"LOST_ITEM"|"OUTLAW"|"OUTLAW_ITEM"|"OUTLAW_ITEM_UNK"|"OUTLAW_MONSTER_HOUSE"|"OUTLAW_FLEE"
 --- @alias rewardType "money"|"item"|"money_item"|"item_item"|"client"|"exclusive"
 --- @alias emotionType "Normal"|"Happy"|"Pain"|"Angry"|"Worried"|"Sad"|"Crying"|"Shouting"|"Teary-Eyed"|"Determined"|"Joyous"|"Inspired"|"Surprised"|"Dizzy"|"Special0"|"Special1"|"Sigh"|"Stunned"|"Special2"|"Special3"
+--- @alias eventId "JobTake"|"JobActivate"|"JobDeactivate"|"DungeonStart"|"FloorStart"|"JobComplete"|"JobFail"|"BeforeReward"|"AfterReward"
 --- @alias AgentIDTable {Species:string, Form:integer|nil, Skin:string|nil, Gender:integer, Weight:integer|nil, Unique:boolean|nil}
 --- @alias Character any RogueEssence.Dungeon.Character
 --- @alias MonsterTeam any RogueEssence.Dungeon.MonsterTeam
@@ -201,6 +202,30 @@ local settings = {
     --- Given the complexity of this structure, it is best generated using the "AddDungeonSection" function near the bottom of this file.
     ---@type table<string, table<integer, {max_floor:integer, must_end:boolean, sections:{start:integer, difficulty:string}[]}>>
     dungeons = {},
+    --- This is a special table where you can specify chance multipliers for job types depending on the dungeon.
+    --- Format: <dungeon_id> = {<job_type_id> = <multiplier>}
+    ---
+    --- * <dungeon_id>: the string id of a dungeon
+    --- * <job_type_id>: one of RESCUE_SELF, RESCUE_FRIEND, ESCORT, EXPLORATION, DELIVERY, LOST_ITEM, OUTLAW, OUTLAW_ITEM, OUTLAW_ITEM_UNK, OUTLAW_MONSTER_HOUSE, OUTLAW_FLEE
+    --- * <multiplier>: a multiplier value. It doesn't need to be an integer. It will be multiplied with the board's base chances, rounding up, when choosing the type of a job.
+    --- Set it to 0 or less to disable the job type altogehter.
+    --- @type table<string, table<jobType, number>>
+    dungeon_job_modifiers = {
+        ambush_forest = {
+            OUTLAW = 3,
+            OUTLAW_ITEM = 3,
+            OUTLAW_ITEM_UNK = 3,
+            OUTLAW_MONSTER_HOUSE = 3,
+            OUTLAW_FLEE = 3
+        },
+        treacherous_mountain = {
+            OUTLAW = 3,
+            OUTLAW_ITEM = 3,
+            OUTLAW_ITEM_UNK = 3,
+            OUTLAW_MONSTER_HOUSE = 3,
+            OUTLAW_FLEE = 3
+        }
+    },
     --- Jobs are sorted by dungeon, following this order. Missing dungeons are shoved at the bottom and sorted alphabetically.
     --- This list is automatically populated in call order when using the "AddDungeonSection" function near the bottom of this file.
     ---@type table<string, integer>
@@ -218,7 +243,7 @@ local settings = {
     ---@type {condition:fun(zone:string):(boolean), message_key:string|nil,
     ---       message_args:fun(zone:string):(string[])|nil, icon:string|nil}[]
     external_events = {
-        {condition = function(zone) return COMMON.HasSidequestInZone(zone) end, icon = "\\uE111"}
+        {condition = function(zone) return COMMON.HasSidequestInZone(zone) end, icon = "\\uE111", message_key = "MENU_JOB_OBJECTIVE_DEFAULT"}
     },
     --- How to display external event icons in the dungeon list. This value can only be either "FIRST" or ALL".
     --- * If set to "ALL", they will always be displayed in the order defined by external_events.
@@ -259,6 +284,7 @@ local settings = {
     --- This is where you can define special cases for specific types of jobs.
 	--- Format: <job_type_id> = {<special_id>}
 	--- * <job_type_id>: one of RESCUE_SELF, RESCUE_FRIEND, ESCORT, EXPLORATION, DELIVERY, LOST_ITEM, OUTLAW, OUTLAW_ITEM, OUTLAW_ITEM_UNK, OUTLAW_MONSTER_HOUSE, OUTLAW_FLEE
+    --- * <special_id>: any id of your choosing except RESCUE_SELF, RESCUE_FRIEND, ESCORT, EXPLORATION, DELIVERY, LOST_ITEM, OUTLAW, OUTLAW_ITEM, OUTLAW_ITEM_UNK, OUTLAW_MONSTER_HOUSE, OUTLAW_FLEE
     ---@type table<jobType,string[]>
 	special_jobs = {
 		RESCUE_FRIEND = {"CHILD", "LOVER", "RIVAL", "FRIEND"}
@@ -280,7 +306,7 @@ local settings = {
         {id = "item_item", weight = 3},  -- second item hidden
         {id = "money_item", weight = 1}, -- item is hidden
         {id = "client", weight = 1, min_rank = "STAR_1"},     -- appears as ???
-        {id = "exclusive", weight = 1, min_rank = "STAR_4"}   -- appears as ???. Award a 1* xcl item of client, or of target if outlaw mission.
+        {id = "exclusive", weight = 1, min_rank = "STAR_4"}   -- appears as ???. Award a 1* xcl item of client, or of target if law enforcement mission.
     },
     --- The type of extra reward for all quests. It can be "none", "rank" or "exp". Any other value will result in "none"
     ---@type "none"|"rank"|"exp"
@@ -1465,8 +1491,8 @@ local settings = {
         }
     },
     --- A list of Pokémon that will be used for job generation, sorted by arbitrary quest tiers.
-    --- If possible, the system will always pick only Pokémon that are marked as seen, switching tier if necessary.
-    --- If no species defined here has been seen, any may be picked.
+    --- Any of these entries may be picked when choosing client and target.
+    --- If the client picked is not in the dex, the reward type can never be "client" nor "exclusive"
     --- Format: <tier> = {<monster_id>}
     --- * <tier> = one of the tier ids used in difficulty_to_tier
     --- * <monster_id> = either the species id of a pokémon or a monsterId table
@@ -1949,11 +1975,12 @@ local settings = {
     --- In outlaw related quests, you may use ENFORCER as a keyword for a random law enforcement character.
     --- You may also use OFFICER or AGENT to require specific characters.
     --- These keywords can only be used in place of MonsterIDTables.
-    --- Format: <special_type> = {<tier> = {client = MonsterIDTable, target = MonsterIDTable, flavor = string}}
-    --- * <special_type> = one of the following: LOVER, CHILD, FRIEND, RIVAL
+    --- Format: <special_type> = {<tier> = {client = MonsterIDTable, target = MonsterIDTable, item = string, flavor = string}}
+    --- * <special_type> = an id of your choosing. It must be different from any basic job id
     --- * <tier> = one of the tier ids used in difficulty_to_tier
-    --- * client = the data used to generate this Pokémon
-    --- * target = the data used to generate this Pokémon
+    --- * client = the data used to generate this Pokémon.
+    --- * target = the data used to generate this Pokémon.  Only used in job types that require a target.
+    --- * item = the id of the item that will be used for this job. Only used in job types that require an item.
     --- * flavor: flavor string key used for the job
     --- Format of MonsterIDTable: see the "monsterIdTemplate" function in missiongen_lib.lua
     ---
@@ -1961,7 +1988,7 @@ local settings = {
     --- * {0}: target (or client, if there is no target)
     --- * {1}: dungeon
     --- * {2}: item
-    ---@type table<string, table<string,{client:monsterIDTable|string, target:monsterIDTable|string, flavor:string}[]>>
+    ---@type table<string, table<string,{client:monsterIDTable|string, target:monsterIDTable|string, item: string|nil, flavor:string}[]>>
     special_data = {
         LOVER = {
             TIER_LOW = {
@@ -2124,7 +2151,26 @@ local settings = {
 			RIVAL  = { {key = "MISSION_RESCUE_DENY_RIVAL", emotion = "Stunned"} },
 			LOVER  = { {key = "MISSION_RESCUE_DENY_LOVER", emotion = "Stunned"} }
     	}
-    }
+    },
+    --- The object that contains job callback functions. It is recommended to define this object somewhere else.
+    --- Job callbacks are stored inside jobs as strings. These strings are then used as an index in the callback root object to retrieve the
+    --- actual function. They will be passed two parameters, the first one being a table structured like so:
+    --- {cancel: boolean, job: jobTable}
+    --- * cancel: set this to true to stop the event for whatever reason. For example, canceling BeforeReward will stop a job from performing the normal reward cutscene.
+    --- * job: the job that requested this callback.
+    ---
+    --- The second parameter is a list of arguments defined during the callback registration
+    --- List of events:
+	--- * JobTake: Ran right before the job is taken from a board or otherwise obtained using ```library:TakeJob```. The job provided is the copy that would be added to the taken list.
+	--- * JobActivate: Ran right before the job is activated from the taken list menu or by calling ```library:ToggleTakenJob``` on an inactive job.
+	--- * JobDeactivate: Ran right before the job is deactivated from the taken list menu or by calling ```library:ToggleTakenJob``` on an active job.
+	--- * DungeonStart: Ran when entering the dungeon this job is located in. Canceling this event does nothing.
+	--- * FloorStart: Ran at the start of the target floor of the job.
+	--- * JobComplete: Ran when the job is marked as completed during an exploration or otherwised marked as such using ```library:MarkJobCompleted```.
+	--- * JobFail: Ran when the job is marked as failed during an exploration or otherwised marked as such using ```library:MarkJobFailed```.
+	--- * BeforeReward: Ran before this specific job's reward cutscene is started. Canceling this skips the entire reward routine and go straight to deleting the job from the taken list.
+	--- * AfterReward: Ran after this specific job's reward cutscene is started. Canceling this event will prevent the job from being removed from the taken list.
+    mission_callback_root = COMMON
 }
 settings.target_items.OUTLAW_ITEM_UNK = settings.target_items.OUTLAW_ITEM --copy list because it should be the same anyway
 
