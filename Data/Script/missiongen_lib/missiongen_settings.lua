@@ -202,30 +202,6 @@ local settings = {
     --- Given the complexity of this structure, it is best generated using the "AddDungeonSection" function near the bottom of this file.
     ---@type table<string, table<integer, {max_floor:integer, must_end:boolean, sections:{start:integer, difficulty:string}[]}>>
     dungeons = {},
-    --- This is a special table where you can specify chance multipliers for job types depending on the dungeon.
-    --- Format: <dungeon_id> = {<job_type_id> = <multiplier>}
-    ---
-    --- * <dungeon_id>: the string id of a dungeon
-    --- * <job_type_id>: one of RESCUE_SELF, RESCUE_FRIEND, ESCORT, EXPLORATION, DELIVERY, LOST_ITEM, OUTLAW, OUTLAW_ITEM, OUTLAW_ITEM_UNK, OUTLAW_MONSTER_HOUSE, OUTLAW_FLEE
-    --- * <multiplier>: a multiplier value. It doesn't need to be an integer. It will be multiplied with the board's base chances, rounding up, when choosing the type of a job.
-    --- Set it to 0 or less to disable the job type altogehter.
-    --- @type table<string, table<jobType, number>>
-    dungeon_job_modifiers = {
-        ambush_forest = {
-            OUTLAW = 3,
-            OUTLAW_ITEM = 3,
-            OUTLAW_ITEM_UNK = 3,
-            OUTLAW_MONSTER_HOUSE = 3,
-            OUTLAW_FLEE = 3
-        },
-        treacherous_mountain = {
-            OUTLAW = 3,
-            OUTLAW_ITEM = 3,
-            OUTLAW_ITEM_UNK = 3,
-            OUTLAW_MONSTER_HOUSE = 3,
-            OUTLAW_FLEE = 3
-        }
-    },
     --- Jobs are sorted by dungeon, following this order. Missing dungeons are shoved at the bottom and sorted alphabetically.
     --- This list is automatically populated in call order when using the "AddDungeonSection" function near the bottom of this file.
     ---@type table<string, integer>
@@ -276,6 +252,30 @@ local settings = {
         OUTLAW_ITEM_UNK = {rank_modifier = 1, min_rank = "C"},
         OUTLAW_MONSTER_HOUSE = {rank_modifier = 2, min_rank = "S"},
         OUTLAW_FLEE = {rank_modifier = 1, min_rank = "B"}
+    },
+    --- This is a special table where you can specify chance multipliers for job types depending on the dungeon.
+    --- Format: <dungeon_id> = {<job_type_id> = <multiplier>}
+    ---
+    --- * <dungeon_id>: the string id of a dungeon
+    --- * <job_type_id>: one of RESCUE_SELF, RESCUE_FRIEND, ESCORT, EXPLORATION, DELIVERY, LOST_ITEM, OUTLAW, OUTLAW_ITEM, OUTLAW_ITEM_UNK, OUTLAW_MONSTER_HOUSE, OUTLAW_FLEE
+    --- * <multiplier>: a multiplier value. It doesn't need to be an integer. It will be multiplied with the board's base chances, rounding up, when choosing the type of a job.
+    --- Set it to 0 or less to disable the job type altogehter.
+    --- @type table<string, table<jobType, number>>
+    dungeon_job_modifiers = {
+        ambush_forest = {
+            OUTLAW = 3,
+            OUTLAW_ITEM = 3,
+            OUTLAW_ITEM_UNK = 3,
+            OUTLAW_MONSTER_HOUSE = 3,
+            OUTLAW_FLEE = 3
+        },
+        treacherous_mountain = {
+            OUTLAW = 3,
+            OUTLAW_ITEM = 3,
+            OUTLAW_ITEM_UNK = 3,
+            OUTLAW_MONSTER_HOUSE = 3,
+            OUTLAW_FLEE = 3
+        }
     },
     --- Chance of special missions to be generated. Special missions are just handcrafted scenarios with specific
     --- client and target pairs and custom flavor texts. Set to 0 to disable altogether.
@@ -2159,10 +2159,11 @@ local settings = {
     --- * cancel: set this to true to stop the event for whatever reason. For example, canceling BeforeReward will stop a job from performing the normal reward cutscene.
     --- * job: the job that requested this callback.
     ---
-    --- The second parameter is a list of arguments defined during the callback registration
+    --- The second parameter is the list of arguments defined during the callback registration.
+    ---
     --- List of events:
 	--- * JobTake: Ran right before the job is taken from a board or otherwise obtained using ```library:TakeJob```. The job provided is the copy that would be added to the taken list.
-	--- * JobActivate: Ran right before the job is activated from the taken list menu or by calling ```library:ToggleTakenJob``` on an inactive job.
+	--- * JobActivate: Ran right before the job is activated from the taken list menu or by calling ```library:ToggleTakenJob``` on an inactive job. Does NOT run when taken from a board while "taken_jobs_start_active" is true.
 	--- * JobDeactivate: Ran right before the job is deactivated from the taken list menu or by calling ```library:ToggleTakenJob``` on an active job.
 	--- * DungeonStart: Ran when entering the dungeon this job is located in. Canceling this event does nothing.
 	--- * FloorStart: Ran at the start of the target floor of the job.

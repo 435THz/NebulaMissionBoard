@@ -431,7 +431,7 @@ function DungeonJobList:GenerateEntries()
                 local message = self.library:GetObjectiveString(job)
 
                 table.insert(list, {icon = icon, floor = floor, message = message, floor_number = job.Floor})
-            elseif self.segment and not oth_segments[job.Segment] then
+            elseif self.segment and not oth_segments[job.Segment] and not job.Segment == 0 then
                 table.insert(oth_segments_list, job.Segment)
                 oth_segments[job.Segment] = true
             end

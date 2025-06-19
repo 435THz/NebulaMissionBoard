@@ -13,8 +13,8 @@
 --- @alias LibraryRootStruct {boards:table<string,jobTable[]>,taken:jobTable[],dungeon_progress:table<string,table<integer, boolean>>,mission_flags:table<string, any>,previous_limit:integer,escort_jobs:integer}
 --- @alias jobTable {Client:monsterIDTable, Target:monsterIDTable|nil, Flavor:{[1]:string, [2]:string}, Title:string, Zone:string, Segment:integer,
 --- Floor:integer, RewardType:rewardType, Reward1:itemTable|nil, Reward2:itemTable|nil, Type:jobType, Completion:integer, Taken:boolean, BackReference:string|nil,
---- Difficulty:integer, Item:string|nil, Special:string|nil, HideFloor:boolean, Callbacks:table<eventId,{name:string,args:table}>} A table containing all properties of a job
---- @alias itemTable {id:string, count:integer|nil, hidden:string|nil}
+--- Difficulty:integer, Item:string|nil, Special:string|nil, HideFloor:boolean, Callbacks:table<eventId,{name:string,args:table}>, ObjectiveOverride:string|nil} A table containing all properties of a job
+--- @alias itemTable {id:string, count:integer|nil, hidden:string|nil} A table describing an InvItem object
 --- @alias monsterIDTable {Species:string, Form:integer|nil, Skin:string|nil, Gender:integer|nil, Nickname:string|nil} A table that can be converted into a MonsterID object
 --- @alias eventTable {cancel:boolean, job:jobTable} A table used to handle job events
 --- @alias MonsterID {Species:string, Form:integer, Skin:string, Gender:userdata} A MonsterID object
@@ -299,7 +299,9 @@ local jobTemplate = function()
 		---@type boolean Some job types have a chance to have their floor hidden. If this is true, hide the floor.
         HideFloor = false,
 		---@type table<eventId, {name:string,args:table}> table of callbacks with their respective parameters
-		Callbacks = {}
+        Callbacks = {},
+        ---@type string|nil A string key to be used instead of the job type's objective key
+		ObjectiveOverride = nil
 	}
 end
 
@@ -1385,7 +1387,7 @@ end
 
 --- Looks for a job inside a specific board
 --- @param job jobTable the job to look for
---- @param board_id string the table to look in. If nil, the job will be searched for in the taken list
+--- @param board_id? string the table to look in. If nil, the job will be searched for in the taken list
 --- @return integer #the index of the job, or -1 if it was not found.
 function library:FindJobInBoard(job, board_id)
 	local board = self.root.boards[board_id]
@@ -1497,11 +1499,12 @@ end
 --- @param job jobTable the job to generate the objective string of
 --- @return string #the objective string for the job
 function library:GetObjectiveString(job)
-    local client = self:GetCharacterName(job.Client)
+    local key, client = globals.keys[job.Type], self:GetCharacterName(job.Client)
     local target, item = "[color=#FF0000]TARGET[color]", "[color=#FF0000]ITEM[color]"
+    if job.ObjectiveOverride then key = job.ObjectiveOverride end
     if job.Target then target = self:GetCharacterName(job.Target) end
     if job.Item and job.Item ~= "" then item = self:GetItemName(job.Item) end
-    return STRINGS:FormatKey(globals.keys[job.Type], client, target, item)
+    return STRINGS:FormatKey(key, client, target, item)
 end
 
 --- Given a job, it returns its location string, complete with floor if the job doesn't hide it
@@ -2386,13 +2389,15 @@ end
 ---@param title? string the title string key to use for this job. If not set, it will be chosen randomly.
 ---@param flavor? string[] the flavor string key or keys to use for this job. If not set, they will be chosen randomly.
 ---@param hide_floor? boolean if true, the job's floor will be hidden.
----@return jobTable?
-function library:MakeNewJob(zone, segment, floor, job_type, client, target, target_item, reward_type, rewards, title, flavor, hide_floor)
+---@param objective_key? string a string key that will be used instead of the job_type's original one to display this job's objective.
+---@return jobTable? #the new job, or nil if the job generation failed
+function library:MakeNewJob(zone, segment, floor, job_type, client, target, target_item, reward_type, rewards, title, flavor, hide_floor, objective_key)
     local newJob = jobTemplate()
     newJob.Zone = zone
     newJob.Segment = segment
     newJob.Floor = floor
     newJob.Type = job_type
+    newJob.ObjectiveOverride = objective_key
     local sections = self.data.dungeons[newJob.Zone][newJob.Segment]
     for _, section in ipairs(sections.sections) do
         if section.start > newJob.Floor then break end
@@ -2532,15 +2537,24 @@ end
 --- @param board_id string the id of the board the job is in
 --- @param index integer The index of the job to take
 function library:TakeJob(board_id, index)
-	local job = self.root.boards[board_id][index]
+    local job = self.root.boards[board_id][index]
     local taken = shallowCopy(job)
     local evt = callEvent(taken, "JobTake")
-	if evt.cancel then return end
-	job.Taken = true
-	taken.BackReference = board_id
-	taken.Taken = self.data.taken_jobs_start_active and not self:IsJobDestinationInTaken(job)
-	table.insert(self.root.taken, taken)
-	self:SortTaken()
+    if evt.cancel then return end
+    job.Taken = true
+    taken.BackReference = board_id
+	self:AddJobToTaken(taken, self.data.taken_jobs_start_active and not self:IsJobDestinationInTaken(job))
+
+
+end
+
+--- Adds a new job to the taken list. Then orders the list. This function does not trigger the JobTake event.
+--- @param job jobTable the job to add
+--- @param startActive? boolean Optional. If true, the job will be set to active automatically. Defaults to false.
+function library:AddJobToTaken(job, startActive)
+    job.Taken = startActive or false
+    table.insert(self.root.taken, job)
+    self:SortTaken()
 end
 
 --- Removes a job from the taken list.
