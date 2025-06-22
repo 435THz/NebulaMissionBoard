@@ -1265,9 +1265,19 @@
     <value>For eons, we've been rivals with each other.\nI'd hate for it to end! Please, somebody, help!</value>
     <comment>Mission Body - Rivals - Bastiodon and Rampardos</comment>  </data>
   <data name="MISSION_BODY_SPECIAL_RIVAL_018" xml:space="preserve">
-    <value>Please help [color=#00FF00]Aerodactyl[color]!\nShe's an irreplacable rival! I miss her!</value>
+    <value>Please help [color=#00FF00]Aerodactyl[color]!\nShe's an irreplaceable rival! I miss her!</value>
     <comment>Mission Body - Rivals - Archeops and Aerodactyl</comment>  </data>
   <data name="MISSION_BODY_SPECIAL_RIVAL_019" xml:space="preserve">
     <value>Please rescue my rival! We haven't finished\nseeing who is the bravest! Please, please!</value>
     <comment>Mission Body - Rivals - Swellow and Staraptor</comment>  </data>
+
+  <data name="MISSION_TITLE_TEST" xml:space="preserve">
+      <value>Find the legendary {2}</value>
+      <comment></comment>  </data>
+  <data name="MISSION_BODY_TEST" xml:space="preserve">
+      <value>Retrieve the legendary {2}, which is\nsaid to be found in the depths of {1}!</value>
+      <comment></comment>  </data>
+  <data name="MISSION_OBJECTIVES_TEST" xml:space="preserve">
+      <value>Retrieve the {2}</value>
+      <comment></comment>  </data>
 </root>

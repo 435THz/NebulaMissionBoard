@@ -96,7 +96,7 @@ function base_camp_2_bulletin.Hand_In_Missions(job, npcs)
         UI:WaitShowDialogue(STRINGS:Format(STRINGS.MapStrings['Mission_Response_Rescue']))
     elseif job.Type == "EXPLORATION" then
         UI:WaitShowDialogue(STRINGS:Format(STRINGS.MapStrings['Mission_Response_Exploration'],
-            MissionGen:CreateColoredSegmentString(job.Zone, job.Segment)))
+            MissionGen:GetSegmentName(job.Zone, job.Segment)))
     elseif job.Type == "LOST_ITEM" then
         UI:WaitShowDialogue(STRINGS:Format(STRINGS.MapStrings['Mission_Response_Lost_Item'],
             MissionGen:GetItemName(job.Item)))

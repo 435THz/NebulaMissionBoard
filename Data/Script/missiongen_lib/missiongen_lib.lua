@@ -9,8 +9,8 @@
 -- ----------------------------------------------------------------------------------------- --
 -- This file also comes with a pre-installed set of menus for mission display.
 
---- @alias referenceList table<string,boolean>
---- @alias LibraryRootStruct {boards:table<string,jobTable[]>,taken:jobTable[],dungeon_progress:table<string,table<integer, boolean>>,mission_flags:table<string, any>,previous_limit:integer,escort_jobs:integer}
+--- @alias referenceSet table<string,boolean> a generic set whose keys are strings and whose values are always ``true``
+--- @alias LibraryRootStruct {boards:table<string,jobTable[]>,taken:jobTable[],dungeon_progress:table<string,table<integer, boolean>>,mission_flags:table<string, any>,previous_limit:integer,escort_jobs:integer} the structure of library.root
 --- @alias jobTable {Client:monsterIDTable, Target:monsterIDTable|nil, Flavor:{[1]:string, [2]:string}, Title:string, Zone:string, Segment:integer,
 --- Floor:integer, RewardType:rewardType, Reward1:itemTable|nil, Reward2:itemTable|nil, Type:jobType, Completion:integer, Taken:boolean, BackReference:string|nil,
 --- Difficulty:integer, Item:string|nil, Special:string|nil, HideFloor:boolean, Callbacks:table<eventId,{name:string,args:table}>, ObjectiveOverride:string|nil} A table containing all properties of a job
@@ -18,18 +18,15 @@
 --- @alias monsterIDTable {Species:string, Form:integer|nil, Skin:string|nil, Gender:integer|nil, Nickname:string|nil} A table that can be converted into a MonsterID object
 --- @alias eventTable {cancel:boolean, job:jobTable} A table used to handle job events
 --- @alias MonsterID {Species:string, Form:integer, Skin:string, Gender:userdata} A MonsterID object
---- @alias destTable {destinations:string[], occupied:table<string,table<integer,table<integer, boolean>>>, allowed:{segment:integer, floor:integer, difficulty:string}[]}
+--- @alias destTable {destinations:string[], occupied:table<string,table<integer,table<integer, boolean>>>, allowed:{segment:integer, floor:integer, difficulty:string}[]} table used for randomly selecting destinations for jobs.
 
---- @alias categoryType "level"|"tm"|"tutor"|"egg"
---- @alias slotType "stab"|"coverage"|"damage"|"status"
---- @alias synergyEntry {ApplySynergy:referenceList, RequestSynergy:referenceList, Type:string}
---- @alias moveset_entry {ID:string, Type:string, Category:slotType[], Weight:integer, ApplySynergy: string[], RequestSynergy: string[]}
---- @alias moveset_supertable {stab:moveset_entry[],coverage:moveset_entry[],damage:moveset_entry[],status:moveset_entry[]}
---- @alias moveset_list table<string,{cat:slotType[], tables:categoryType[], value:table}>
---- @alias MinimapState any RogueEssence.Dungeon.DungeonScene.MinimapState
-
--- Below is the list of string keys that must be included in your string files for this library to function correctly.
--- BOARD_TAKEN_TITLE - strings.resx - The title of the Taken list when viewing the menu
+-- Types used for moveset generation
+--- @alias categoryType "level"|"tm"|"tutor"|"egg" types of move pools
+--- @alias slotType "stab"|"coverage"|"damage"|"status" types of slots that a move can be inserted into
+--- @alias synergyEntry {ApplySynergy:referenceSet, RequestSynergy:referenceSet, Type:string} a table describing the state of a possible synergy in a moveset
+--- @alias moveset_entry {ID:string, Type:string, Category:slotType[], Weight:integer, ApplySynergy: string[], RequestSynergy: string[]} a table describing a move and all the properties that may influence moveset generation choices
+--- @alias moveset_supertable {stab:moveset_entry[],coverage:moveset_entry[],damage:moveset_entry[],status:moveset_entry[]} a table containing lists of moveset_entries, divided by slotType
+--- @alias moveset_list table<string,{cat:slotType[], tables:categoryType[], value:table}> a backwards reference table that links a move to the supertables and subtables that contain it
 
 local library = {
 	--- Settings data imported from missiongen_settings.lua
@@ -157,6 +154,7 @@ globals.keys.BUTTON_TAKE = "MENU_JOB_TAKE" --Label for the button used to take j
 globals.keys.BUTTON_DELETE = "MENU_JOB_DELETE" --Label for the button used to delete taken jobs
 globals.keys.BUTTON_SUSPEND = "MENU_JOB_SUSPEND" --Label for the button used to suspend jobs
 --- Static display keys that are fetched from stringsEx.resx
+--- Look at the comment beside each key for info on their supported placeholders
 ---@type table<string,string>
 globals.keysEx = {}
 globals.keysEx.RESCUE_FOUND = "DLG_MISSION_RESCUE_FOUND" --Message for finding a rescue target and asking whether or not to warp it out. {0} = pokémon
@@ -201,11 +199,13 @@ globals.keysEx.CUTSCENE_AWARD_CHAR_PROMPT = "MISSION_COMPLETED_CUTSCENE_AWARD_CH
 globals.keysEx.CUTSCENE_AWARD_EXTRA = "MISSION_COMPLETED_CUTSCENE_AWARD_EXTRA" --Message used to notify the player about the extra reward they were awarded. {0} = team, {1} = amount
 globals.keysEx.CUTSCENE_AWARD_RANK_UP = "MISSION_COMPLETED_CUTSCENE_AWARD_RANK_UP" --Message used to notify the player about a rank up. {0} = team, {1} = original rank, {2} = new rank
 
+library.globals = globals
+
 -- ----------------------------------------------------------------------------------------- --
 -- #region DATA GENERATORS
 -- ----------------------------------------------------------------------------------------- --
 -- Here at the top for easy access and reference, so that it is possible for modders to
--- quickly understand how the data is structured.
+-- understand how the data is structured.
 
 --- Loads the root of the main data structure, generating the specified nodes if necessary.
 function library:load()
@@ -245,6 +245,8 @@ end
 
 --- Loads the dungeon progress table. Any completed dungeons that are missing from this table will have only
 --- their segment 0 marked as completed.
+--- In other words, when a mod with this library is loaded for the first time, it will assume, for all dungeons,
+--- that only segment 0 has been completed
 function library:loadDungeonTable()
 	self.root.dungeon_progress = self.root.dungeon_progress or {}
 	local UnlockState = RogueEssence.Data.GameProgress.UnlockState
@@ -259,6 +261,7 @@ function library:loadDungeonTable()
 	end
 end
 
+--- Returns an empty job table, also known as a job template.
 --- @return jobTable #a new empty job template
 local jobTemplate = function()
     return {
@@ -305,6 +308,7 @@ local jobTemplate = function()
 	}
 end
 
+--- Returns an empty monster id table, also known as a monster id template.
 --- @return monsterIDTable #an empty MonsterID-style table
 local monsterIdTemplate = function()
     ---@type monsterIDTable
@@ -322,9 +326,10 @@ local monsterIdTemplate = function()
     }
 end
 
----@param job jobTable the hob associated to this event
+---Initializes a new event table and associates to a specific job
+---@param job jobTable the job associated to this event
 ---@return eventTable #an event table associated to a specific job
-local eventTemplate = function(job)
+local newEvent = function(job)
     return {
         cancel = false,
 		job = job
@@ -388,8 +393,8 @@ end
 ---Takes a list and returns a new, shuffled version of the integer pairs in the list.
 ---The returned list is new, meaning that tbl is left unmodified, but the items inside are not copies.
 ---Use deepCopy afterwards if you need to edit them.
----@param tbl table a table to shuffle
----@return table a shuffled version of the table
+---@param tbl any[] a table to shuffle
+---@return any[] a shuffled version of the table
 local shuffleTable = function(tbl, replay_sensitive)
     local indices = COMMON.GetSortedKeys(tbl, true)
     local shuffled = {}
@@ -401,7 +406,7 @@ local shuffleTable = function(tbl, replay_sensitive)
     return shuffled
 end
 
---- Rolls a MonsterForm's gender and returns it as a number
+--- Rolls a MonsterForm's gender and returns it as a number.
 --- @param species string the id of the species to roll the gender of
 --- @param form integer the index of the form to roll the gender of
 --- @return integer #a gender index number
@@ -409,11 +414,11 @@ local rollMonsterGender = function(species, form)
 	return library:GenderToNumber(_DATA:GetMonster(species).Forms[form]:RollGender(_DATA.Save.Rand))
 end
 
----Creates a deep copy of a table and returns it.
----this function checks for redundant paths to avoid infinite recursion.
----@generic T:table
----@param tbl T the table to deep copy
----@return T #the copy
+--- Creates a deep copy of a table and returns it.
+--- This function checks for redundant paths to avoid infinite recursion.
+--- @generic T:table
+--- @param tbl T the table to deep copy
+--- @return T #the copy
 local deepCopy = function(tbl)
     local deepcopy
     deepcopy = function(orig, copies)
@@ -441,9 +446,9 @@ end
 
 --- Creates a shallow copy of a table by simply creating a new table and copying
 --- all surface level key-value pairs into it from the original.
----@generic T : table
----@param tbl T
----@return T
+--- @generic T : table
+--- @param tbl T the table to copy
+--- @return T #the copy
 local shallowCopy = function(tbl)
 	local copy = {}
 	for key, value in pairs(tbl) do
@@ -452,7 +457,7 @@ local shallowCopy = function(tbl)
 	return copy
 end
 
---- Sorting function used for job lists
+--- Sorting function used for job lists.
 --- @param j1 jobTable a job table
 --- @param j2 jobTable another job table
 --- @return boolean true if j1 goes after j2, false otherwise
@@ -479,11 +484,12 @@ local sortJobs = function(j1, j2)
 	end
 end
 
----@param job jobTable
----@param event_id eventId
----@return eventTable #the final state of the event table
+--- Signals the triggering of an event. If the triggering job has a callback associated with it, it will be called as well.
+--- @param job jobTable the job that triggered the event
+--- @param event_id eventId the event that has been triggered
+--- @return eventTable #the final state of the event table
 local callEvent = function(job, event_id)
-    local evt = eventTemplate(job)
+    local evt = newEvent(job)
     local cb = job.Callbacks[event_id]
     if cb then
         library.data.mission_callback_root[cb.name](evt, cb.args or {})
@@ -491,8 +497,8 @@ local callEvent = function(job, event_id)
 	return evt
 end
 
----Clears all effects from a Character
----@param char Character
+---Clears all effects from a Character.
+---@param char Character the Character to remove effects from.
 local RemoveCharEffects = function(char)
     char.StatusEffects:Clear();
     char.ProxyAtk = -1;
@@ -502,7 +508,7 @@ local RemoveCharEffects = function(char)
     char.ProxySpeed = -1;
 end
 
----Displays the warp out animation for the whole party, guests included
+---Displays the warp out animation for the whole party, guests included.
 local warpOut = function()
     local player_count = GAME:GetPlayerPartyCount()
     local guest_count = GAME:GetPlayerGuestCount()
@@ -529,6 +535,9 @@ local warpOut = function()
     end
 end
 
+--- Flow of execution specific of rescue jobs.
+--- @param context any c# BattleEvent context
+--- @param job jobTable the job in question
 local rescueReachedFlow = function(context, job)
     local targetName = context.Target:GetDisplayName(true)
     UI:ChoiceMenuYesNo(STRINGS:Format(RogueEssence.StringKey(globals.keysEx.RESCUE_FOUND):ToLocal(), targetName), false)
@@ -582,6 +591,9 @@ local rescueReachedFlow = function(context, job)
     end
 end
 
+--- Flow of execution specific of delivery jobs.
+--- @param context any c# BattleEvent context
+--- @param job jobTable the job in question
 local deliveryReachedFlow = function(context, job, oldDir)
     local targetName = context.Target:GetDisplayName(true)
     -- Take from inventory first before held items
@@ -643,6 +655,7 @@ local deliveryReachedFlow = function(context, job, oldDir)
     end
 end
 
+--- Resets the animations of all characters in the party.
 local resetAnims = function()
     local player_count = GAME:GetPlayerPartyCount()
     local guest_count = GAME:GetPlayerGuestCount()
@@ -669,8 +682,8 @@ local resetAnims = function()
     end
 end
 
---- Returns a list of all types that cover the weaknesses of a type combination
----@return referenceList
+--- Returns a set of all types that cover the weaknesses of a type combination.
+--- @return referenceSet #a table whose keys are element ids and whose valòues are ``true``
 local getCoverageTypes = function(types)
     local all_types = _DATA.DataIndices[RogueEssence.Data.DataManager.DataType.Element]:GetOrderedKeys(true)
     local weaknesses = {}
@@ -783,12 +796,12 @@ local synergyLookup = function(skill, entry)
     end
 end
 
---- Generates a list of allowed moves for a specific character, taking into account how that move can be procured.
+--- Generates a list of allowed moves for a specific character, taking into account how that move can be obtained.
 --- @param chara any The character to check
 --- @param tm_allowed boolean If true, the tm list will be populated
 --- @param tutor_allowed boolean If true, the tutor list will be populated
 --- @param egg_allowed boolean If true, the egg list will be populated
---- @param blacklist referenceList a reference set of moves that must never be picked no matter what
+--- @param blacklist referenceSet a reference set of moves that must never be picked no matter what
 --- @return {all:moveset_list, level:moveset_supertable,tm:moveset_supertable,tutor:moveset_supertable,egg:moveset_supertable}
 local filterMoveset = function(chara, tm_allowed, tutor_allowed, egg_allowed, blacklist)
 	---@type {all:moveset_list, level:moveset_supertable,tm:moveset_supertable,tutor:moveset_supertable,egg:moveset_supertable}
@@ -904,16 +917,16 @@ end
 local moveSelection = {}
 --- Picks one stab move if the list is not empty. Otherwise, coverage gets called.
 --- @param moveset_table {all:moveset_list, level:moveset_supertable,tm:moveset_supertable,tutor:moveset_supertable,egg:moveset_supertable} the moveset table
---- @param synergies table<"_Completed"|integer,synergyEntry|referenceList> the synergy table
+--- @param synergies table<"_Completed"|integer,synergyEntry|referenceSet> the synergy table
 --- @param allowed table<categoryType, integer> number of allowed moves per category
 function moveSelection.stab(moveset_table, synergies, allowed)
     local fallback = function() return moveSelection.coverage(moveset_table, synergies, allowed) end
     return moveSelection.selectMove(moveset_table, synergies, allowed, "stab", fallback)
 end
 
---- Picks one coverage move if the list is not empty. Otherwise, damaging gets called.
+--- Picks one coverage move if the list is not empty. Otherwise, damage gets called.
 --- @param moveset_table {all:moveset_list, level:moveset_supertable,tm:moveset_supertable,tutor:moveset_supertable,egg:moveset_supertable} the moveset table
---- @param synergies table<"_Completed"|integer,synergyEntry|referenceList> the synergy table
+--- @param synergies table<"_Completed"|integer,synergyEntry|referenceSet> the synergy table
 --- @param allowed table<categoryType, integer> number of allowed moves per category
 function moveSelection.coverage(moveset_table, synergies, allowed)
     local fallback = function() return moveSelection.damage(moveset_table, synergies, allowed) end
@@ -922,7 +935,7 @@ end
 
 --- Picks one damaging move if the list is not empty. Otherwise, it picks one status move. If that list is also empty, it selects nothing.
 --- @param moveset_table {all:moveset_list, level:moveset_supertable,tm:moveset_supertable,tutor:moveset_supertable,egg:moveset_supertable} the moveset table
---- @param synergies table<"_Completed"|integer,synergyEntry|referenceList> the synergy table
+--- @param synergies table<"_Completed"|integer,synergyEntry|referenceSet> the synergy table
 --- @param allowed table<categoryType, integer> number of allowed moves per category
 function moveSelection.damage(moveset_table, synergies, allowed)
     local pick_none = function() return "" end
@@ -932,7 +945,7 @@ end
 
 --- Picks one status move if the list is not empty. Otherwise, it picks one damaging move. If that list is also empty, it selects nothing.
 --- @param moveset_table {all:moveset_list, level:moveset_supertable,tm:moveset_supertable,tutor:moveset_supertable,egg:moveset_supertable} the moveset table
---- @param synergies table<"_Completed"|integer,synergyEntry|referenceList> the synergy table
+--- @param synergies table<"_Completed"|integer,synergyEntry|referenceSet> the synergy table
 --- @param allowed table<categoryType, integer> number of allowed moves per category
 function moveSelection.status(moveset_table, synergies, allowed)
     local pick_none = function() return "" end
@@ -940,9 +953,9 @@ function moveSelection.status(moveset_table, synergies, allowed)
     return moveSelection.selectMove(moveset_table, synergies, allowed, "status", fallback)
 end
 
---- Scans for possible synergies and returns a weight multiplier based on them
+--- Scans for possible synergies and returns a weight multiplier based on them.
 --- @param data moveset_entry the data associated to a specific move
---- @param synergies table<"_Completed"|integer,synergyEntry|referenceList> the synergy table
+--- @param synergies table<"_Completed"|integer,synergyEntry|referenceSet> the synergy table
 --- @return number #the final weight multiplier for the move
 local getSynergyMultiplier = function(data, synergies)
     local mult = 1
@@ -977,7 +990,7 @@ end
 
 --- Updates the synergy table by adding the synergies of the newly selected move.
 --- @param data moveset_entry the synergy data for a move
---- @param synergies table<"_Completed"|integer,synergyEntry|referenceList> the synergy table
+--- @param synergies table<"_Completed"|integer,synergyEntry|referenceSet> the synergy table
 local updateSynergies = function(data, synergies)
     ---@type synergyEntry
     local newdata = { RequestSynergy = {}, ApplySynergy = {}, Type = data.Type }
@@ -1019,9 +1032,9 @@ local updateSynergies = function(data, synergies)
     table.insert(synergies, newdata)
 end
 
----picks one move from the subtable if the list is not empty. Otherwise, fallback gets called
+---Picks one move from the subtable if the list is not empty. Otherwise, fallback gets called
 ---@param moveset_table {all:moveset_list, level:moveset_supertable,tm:moveset_supertable,tutor:moveset_supertable,egg:moveset_supertable} the moveset table
----@param synergies table<"_Completed"|integer,synergyEntry|referenceList> the synergy table
+---@param synergies table<"_Completed"|integer,synergyEntry|referenceSet> the synergy table
 ---@param allowed table<categoryType, integer> number of allowed moves per category
 ---@param subtable slotType the slot to pick a move for
 ---@param fallback function function to call if the current settings would return nothing
@@ -1077,6 +1090,13 @@ function moveSelection.selectMove(moveset_table, synergies, allowed, subtable, f
     return result
 end
 
+--- Returns a 2d iterator function that operates in an outwards-going, square spiral.
+--- Every iteration returns a RogueElements.Loc, and an integer that's equal to the distance of the square it belongs to from the center of the spiral.
+--- The function returned by this can be used to supply elements to for loops.
+--- @param center {X:integer, Y:integer}
+--- @param end_radius integer
+--- @param start_radius? integer
+--- @return fun():{X:integer, Y:integer}, integer
 local iter_spiral = function(center, end_radius, start_radius)
     start_radius = start_radius or 0
     local phase_patterns = {
@@ -1089,7 +1109,7 @@ local iter_spiral = function(center, end_radius, start_radius)
     return function()
         if radius == 0 then
             radius, offset = 1, 0
-            return center
+            return center, radius
         end
 
         if offset > radius then
@@ -1101,6 +1121,7 @@ local iter_spiral = function(center, end_radius, start_radius)
             phase = 1
             offset = 1 - radius
         end
+		---@diagnostic disable-next-line: missing-return-value
         if radius > end_radius then return end
 
         local pos = { X = center.X, Y = center.Y }
@@ -1114,6 +1135,9 @@ local iter_spiral = function(center, end_radius, start_radius)
     end
 end
 
+--- Iterates through all enemies on the floor and calculates their average level, rounded up.
+--- Used to generate the level of outlaws in reset dungeons.
+--- @return integer #the average level of enemies on the floor
 local getFloorAverage = function()
     local foes = LUA_ENGINE:MakeList(_ZONE.CurrentMap:IterateCharacters(false, true))
     local total = 0
@@ -1131,6 +1155,10 @@ local getFloorAverage = function()
     return math.ceil(total / players.Count)
 end
 
+--- Returns a list of valid forms for a species.
+--- @param species string the id of the species to check
+--- @param flee_check boolean if true, make sure that types considered a problem for fleeing outlaws are treated as non-valid
+--- @return integer[] #a list of form indexes
 local validForms = function(species, flee_check)
     local valid_forms = {}
     local forms = _DATA:GetMonster(species).Forms
@@ -1153,8 +1181,13 @@ local validForms = function(species, flee_check)
     return valid_forms
 end
 
+--- Checks if a species-form pair is valid.
+--- @param species string the id of the species to check
+--- @param form integer the index of the form to check
+--- @param flee_check boolean if true, make sure that types considered a problem for fleeing outlaws are treated as non-valid
+--- @return boolean #true if the form is valid, false otherwise
 local isValidForm = function(species, form, flee_check)
-    local formData = _DATA.GetMonster(species).Forms[form]
+    local formData = _DATA:GetMonster(species).Forms[form]
     if not formData.Released or formData.Temporary then return false end
     if flee_check then
         for _, type in ipairs(library.data.fleeing_outlaw_restrictions) do
@@ -1166,6 +1199,9 @@ local isValidForm = function(species, form, flee_check)
     return true
 end
 
+--- Generates all ground characters required for the reward cutscene, then passes them to the provided callback.
+--- @param jobIndex integer the index of the job to call the reward cutscene for
+--- @param callback fun(job:jobTable, chars:any[])
 local rewardCutscene = function(jobIndex, callback)
     local job = library.root.taken[jobIndex]
 
@@ -1210,19 +1246,20 @@ local rewardCutscene = function(jobIndex, callback)
         GAME:GetCurrentGround():RemoveTempChar(char)
     end
 end
+
 -- ----------------------------------------------------------------------------------------- --
 -- #region GETTERS
 -- ----------------------------------------------------------------------------------------- --
 -- Quickly get specific data regarding jobs or boards
 
---- Checks if a board is empty or not
+--- Checks if a board is empty or not.
 --- @param board_id string the id of the board to check
 --- @return boolean|nil #true if there are 0 jobs inside the board, false otherwise. Returns nil if the board does not exist
 function library:IsBoardEmpty(board_id)
 	if self.data.boards[board_id] then return #self.root.boards[board_id]<=0 end
 end
 
---- Checks if a board is full or not
+--- Checks if a board is full or not.
 --- @param board_id string the id of the board to check
 --- @return boolean|nil #true if there are no more free job slots inside the board, false otherwise. Returns nil if the board does not exist
 function library:IsBoardFull(board_id)
@@ -1230,33 +1267,33 @@ function library:IsBoardFull(board_id)
 	else return end
 end
 
---- Retrieves the number of jobs inside a board
+--- Retrieves the number of jobs inside a board.
 --- @param board_id string the id of the board to check
 --- @return integer|nil #The number of jobs in the board. Returns nil if the board does not exist
 function library:GetBoardCount(board_id)
     if self.data.boards[board_id] then return #self.root.boards[board_id] end
 end
 
---- Checks if a board is active by running its condition check
+--- Checks if a board is active by running its condition check.
 --- @param board_id string the id of the board to check
 --- @return boolean|nil #true if the board's condition check passes, false otherwise. Returns nil if the board does not exist
 function library:IsBoardActive(board_id)
     if self.data.boards[board_id] then return self.data.boards[board_id].condition(self) else return end
 end
 
---- Checks if the player's taken job list is empty or not
+--- Checks if the player's taken job list is empty or not.
 --- @return boolean #true if there are 0 jobs inside the taken list, false otherwise.
 function library:IsTakenListEmpty() return #self.root.taken<=0 end
 
---- Checks if the player's taken job list is full or not
+--- Checks if the player's taken job list is full or not.
 --- @return boolean #true if there are no more free job slots inside the taken list, false otherwise.
 function library:IsTakenListFull() return #self.root.taken>=self.data.taken_limit end
 
---- Retrieves the number of jobs inside the taken list
+--- Retrieves the number of jobs inside the taken list.
 --- @return integer #The number of jobs taken. Returns nil if the board does not exist
 function library:GetTakenCount() return #self.root.taken end
 
---- Checks if the given board has a job in the requested slot
+--- Checks if the given board has a job in the requested slot.
 --- @param board_id string the id of the board to check
 --- @param index integer|nil The index of the job to check. If omitted, defaults to job 1 of the board.
 --- @return boolean #true if the job exists, false otherwise
@@ -1275,7 +1312,7 @@ function library:GetBoardJob(board_id, index) return self.root.boards[board_id][
 --- @return jobTable #the data table of the job at that position, or nil if there is no job there.
 function library:GetTakenJob( index) return self.root.taken[index] end
 
---- Checks whether or not two jobs have the same destination
+--- Checks whether or not two jobs have the same destination.
 --- @param job1 jobTable a job
 --- @param job2 jobTable another job
 --- @return boolean #true if the jobs have the same Zone, Segment and Floor, false otherwise
@@ -1297,13 +1334,13 @@ function library:IsJobDestinationInTaken(job, check_equal)
     return false
 end
 
---- Checks if there are completed missions to hand in
+--- Checks if there are completed missions to hand in.
 --- @return boolean #true if there are completed missions, false otherwise
 function library:HasCompletedMissions()
     return self.root.mission_flags.MissionCompleted --[[@as boolean]] or false
 end
 
---- Checks if the provided species is registered in the game's dex
+--- Checks if the provided species is registered in the game's dex.
 --- @param species string a species id
 --- @param obtained? boolean if true, it will only return true if the pokémon has been obtained already
 --- @return boolean #true if the species is registered, false otherwise
@@ -1343,7 +1380,7 @@ function library:JobTypeIsOutlaw(jobType)
 	return globals.job_types[jobType].target_outlaw
 end
 
---- Checks if the provided job type is marked as a law enforcement job. A job whose jobtype is marked as a law enforcement
+--- Checks if the provided job type is marked as a law enforcement job. A job whose jobtype is marked as a law enforcement.
 --- job will display the law enforcement characters when processing its job completion cutscene.
 --- @param jobType jobType a job type id string
 --- @return boolean #true if the job type requires is marked as a law enforcement job, false otherwise
@@ -1354,7 +1391,7 @@ end
 --- Checks if two jobs are equal. It compares location, job type, client and target data to do so.
 --- @param j1 jobTable a job
 --- @param j2 jobTable another job
---- @return boolean true if the objects are considered equal, false otherwise
+--- @return boolean #true if the objects are considered equal, false otherwise
 function library:JobsEqual(j1, j2)
 	if j1.Zone == j2.Zone and
 			j1.Segment == j2.Segment and
@@ -1371,41 +1408,52 @@ end
 --- Checks if two character tables are equal. It also checks for nicknames.
 --- @param c1 monsterIDTable a character
 --- @param c2 monsterIDTable another character
---- @return boolean true if the objects are considered equal, false otherwise
+--- @return boolean #true if the objects are considered equal, false otherwise
 function library:CharsEqual(c1, c2)
-  if not c1 and not c2 then return true end
-  if (c1 and not c2) or (c2 and not c1) then return false end
-	if c1.Species == c2.Species and
-			c1.Form == c2.Form and
-			c1.Skin == c2.Skin and
-			c1.Gender == c2.Gender and
-			c1.Nickname == c2.Nickname then
-		return true
-	end
-	return false
+    if not c1 and not c2 then return true end
+    if (c1 and not c2) or (c2 and not c1) then return false end
+    if c1.Species == c2.Species and
+        c1.Form == c2.Form and
+        c1.Skin == c2.Skin and
+        c1.Gender == c2.Gender and
+        c1.Nickname == c2.Nickname then
+        return true
+    end
+    return false
 end
 
---- Looks for a job inside a specific board
+--- Looks for a job inside a specific board, using the same criteria as ``library.JobsEqual``.
 --- @param job jobTable the job to look for
---- @param board_id? string the table to look in. If nil, the job will be searched for in the taken list
+--- @param board_id string|nil the table to look in. If nil, it will immediately return -1.
 --- @return integer #the index of the job, or -1 if it was not found.
 function library:FindJobInBoard(job, board_id)
-	local board = self.root.boards[board_id]
-	if not board_id then board = self.root.taken end
+    if not board_id then return -1 end
+    local board = self.root.boards[board_id]
 
-	for i, job2 in ipairs(board) do
+    for i, job2 in ipairs(board) do
+        if self:JobsEqual(job, job2) then return i end
+    end
+    return -1
+end
+
+--- Looks for a job inside the taken list, using the same criteria as ``library.JobsEqual``.
+--- @param job jobTable the job to look for
+--- @return integer #the index of the job, or -1 if it was not found.
+function library:FindJobInTaken(job)
+	for i, job2 in ipairs(self.root.taken) do
 		if self:JobsEqual(job, job2) then return i end
 	end
 	return -1
 end
 
---- Given a segment index, return a colored segment.
+--- Given a zone id and segment index, return a colored segment name.
 --- This is obtained by removing the part containing the string "{0}" and wrapping everything else in orange
 --- The string containing "{0}" is then returned separately, with the floor placeholder specifically wrapped in cyan
 --- @param zone_id string the id of the zone to generate the string of
---- @param segment_index number the index of the segment to generate the string of
+--- @param segment_index? number the index of the segment to generate the string of. Defaults to 0.
 --- @return string, string #the name of the zone and the string format containing the floor string
-function library:CreateColoredSegmentString(zone_id, segment_index)
+function library:GetSegmentName(zone_id, segment_index)
+if not segment_index then segment_index = 0 end
 	local segment_name = zone_id.." {0}F"
 	local segment = _DATA:GetZone(zone_id).Segments[segment_index]
 
@@ -1495,7 +1543,7 @@ function library:GetItemName(item, icon)
     end
 end
 
---- Given a job, it returns its objective string
+--- Given a job, it returns its objective string.
 --- @param job jobTable the job to generate the objective string of
 --- @return string #the objective string for the job
 function library:GetObjectiveString(job)
@@ -1507,13 +1555,13 @@ function library:GetObjectiveString(job)
     return STRINGS:FormatKey(key, client, target, item)
 end
 
---- Given a job, it returns its location string, complete with floor if the job doesn't hide it
+--- Given a job, it returns its location string, complete with floor if the job doesn't hide it.
 --- @param job jobTable the job to generate the location string of
 --- @return string #the location string for the job
-function library:GetZoneString(job)
+function library:GetDestinationString(job)
     local zone_string, floor_string = "", ""
     if job.Zone ~= "" and job.Segment>=0 then
-        zone_string, floor_string = self:CreateColoredSegmentString(job.Zone, job.Segment)
+        zone_string, floor_string = self:GetSegmentName(job.Zone, job.Segment)
         floor_string = STRINGS:Format(floor_string, tostring(job.Floor))
     else
         logWarn(globals.warn_types.DATA, "Could not generate loction string for segment "..tostring(job.Segment).." of "..job.Zone.." because it has no display name")
@@ -1542,7 +1590,7 @@ function library:GetDifficultyString(job, include_extra)
     return str
 end
 
---- Given a job, it returns its reward string
+--- Given a job, it returns its reward string.
 --- @param job jobTable the job to generate the reward string of
 --- @return string #the reward string for the job
 function library:GetRewardString(job)
@@ -1574,7 +1622,7 @@ function library:HasExternalEvents(zone)
     return false
 end
 
----Checks for all external events and returns a list of all events that returned true
+---Checks for all external events and returns a list of all events that returned true.
 ---@param zone string the zone to run the checks on
 ---@return {condition:fun(zone:string):(boolean), message_key:string|nil, message_args:fun(zone:string):(string[])|nil, icon:string|nil}[] #a list of all checks whose condition is fulfilled
 function library:GetExternalEvents(zone)
@@ -1620,7 +1668,7 @@ function library:GenderToNumber(gender)
 	return res
 end
 
---- Fills out a MonsterIDTable's missing properties
+--- Fills out a MonsterIDTable's missing properties.
 --- Form, String and Gender are optional. If absent, Gender is rolled randomly, while the others will be set to 0 and "normal" respectively.
 --- @param table monsterIDTable a table formatted like so: {Species = string, [Form = int], [Skin = string], [Gender = int]}
 --- @return monsterIDTable #the same table, but with all required data filled out
@@ -1657,7 +1705,7 @@ function library:MonsterIDToTable(monsterId, nickname)
 	return table
 end
 
---- Converts a difficulty id into a numerical difficulty level
+--- Converts a difficulty id into a numerical difficulty level.
 --- @param diff string the difficulty id
 --- @return integer #the difficulty level
 function library:DifficultyToNum(diff)
@@ -1680,7 +1728,7 @@ end
 -- ----------------------------------------------------------------------------------------- --
 -- Functions for randomization purposes
 
---- Returns a random element of the list.
+--- Returns a randomly chosen element of the given list.
 --- Elements must have a "weight" property, otherwise their weight will default to 1.
 --- @generic T:table
 --- @param list T[] the list of elements to roll.
@@ -1691,7 +1739,7 @@ function library:WeightedRandom(list, replay_sensitive)
 	return entry, index
 end
 
---- Returns a random element of the list, excluding any key in the exclude table.
+--- Returns a randomly chosen element of the given list, excluding any key in the exclude table.
 --- Elements must have a "weight" property, otherwise their weight will default to 1.
 --- @generic T:table
 --- @param list T[] the list of elements to roll.
@@ -1735,7 +1783,7 @@ function library:WeightedRandomExclude(list, exclude, replay_sensitive, alt_id)
 	return list[#list], #list -- should never hit, but just in case, return last
 end
 
---- Returns a random element of the list.
+--- Returns a randomly chosen element of the given list.
 --- All elements have the same chance of being returned.
 --- @generic T:any
 --- @param list T[] the list of elements to roll.
@@ -1751,7 +1799,7 @@ function library:WeightlessRandom(list, replay_sensitive)
 	return list[roll], roll
 end
 
---- Returns a random element of the list, excluding any key in the exclude table.
+--- Returns a randomly chosen element of the given list, excluding any key in the exclude table.
 --- All elements have the same chance of being returned.
 --- @generic T:any
 --- @param list T[] the list of elements to roll.
@@ -1787,13 +1835,17 @@ end
 -- ----------------------------------------------------------------------------------------- --
 -- Core library functions
 
---- Sorts the taken jobs list
-function library:SortTaken() table.sort(self.root.taken, sortJobs) end
+--- Sorts the taken jobs list.
+function library:SortTaken()
+    table.sort(self.root.taken, sortJobs)
+end
 
---- Sorts all job boards
-function library:SortBoards() for board in pairs(self.root.boards) do self:SortBoard(board) end end
+--- Sorts all job boards.
+function library:SortBoards()
+    for board in pairs(self.root.boards) do self:SortBoard(board) end
+end
 
---- Sorts a specific job board
+--- Sorts a specific job board.
 --- @param board_id string the id of the board to be sorted
 function library:SortBoard(board_id)
 	if not self.root.boards[board_id] then
@@ -1812,7 +1864,7 @@ function library:UpdateBoards()
 	self:SortBoards()
 end
 
---- Resets all boards. Boards that are not supposed to exist will be deleted.
+--- Clears all boards. Boards that are not supposed to exist will be deleted.
 function library:FlushBoards()
 	for board in pairs(self.root.boards) do
 		self:FlushBoard(board)
@@ -1820,6 +1872,7 @@ function library:FlushBoards()
 end
 
 --- Fills all empty slots in all boards.
+--- This function does not flush boards before it tries to fill them.
 function library:PopulateBoards()
 	local dest_data = self:CompileDestinationData()
 	for board in pairs(self.data.boards) do
@@ -1829,7 +1882,7 @@ function library:PopulateBoards()
 	end
 end
 
---- Resets the requested board. It will throw an error if the board does not exist.
+--- Clears the requested board. It will throw an error if the board does not exist.
 --- @param board_id string the id of the board to be flushed
 function library:FlushBoard(board_id)
 	if self.data.boards[board_id] == nil then
@@ -1840,7 +1893,8 @@ function library:FlushBoard(board_id)
 	end
 end
 
---- Checks if the floors requested
+--- Checks if the floor requested is occupied by any already generated job.
+--- It does so by checking a floors_occupied table, if provided, otherwise it checks the various job tables.
 ---	@param zone string the zone id
 ---	@param segment integer the 0-based segment index
 ---	@param floor integer the 1-based floor number
@@ -1865,7 +1919,7 @@ function library:IsDestinationOccupied(zone, segment, floor, floors_occupied)
 end
 
 --- Returns a multi-layer map of all destinations that have a job associated to them.
---- The resulting data struvture must be accessed in this order of zone, segment and then floor.
+--- The resulting data structure must be accessed in the order of zone, segment and then floor.
 ---@return table<string,table<integer,table<integer,boolean>>> #the destination map.
 function library:GetFloorsOccupied()
     local floors_occupied = {}
@@ -1903,9 +1957,11 @@ function library:GetValidZones()
     return zones
 end
 
+--- Checks if a zone has any valid destinations at all. Floors with fixed generation plans are ignored, as well as any floors already taken by another job.
+--- You can pass a pre-generated floors_occupied table for greater efficiency in case you need to use it in multiple places.
 --- @param zone string the zone to check for
 --- @param floors_occupied? table<string,table<integer,table<integer,boolean>>> the destination map returned by ```library:GetFlorsOccupied()```. If missing, it will be generated on the fly.
---- @return boolean
+--- @return boolean #true if the dungeon has even just one valid floor destination, false otherwise.
 function library:ZoneHasValidDestinations(zone, floors_occupied)
     if not floors_occupied then
         floors_occupied = self:GetFloorsOccupied()
@@ -1933,6 +1989,9 @@ function library:ZoneHasValidDestinations(zone, floors_occupied)
     return false
 end
 
+--- Generates a list of all valid destinations within a zone. It takes into account all segments that have been registered for it in the settings file.
+--- Floors with fixed generation plans are ignored, as well as any floors already taken by another job.
+--- You can pass a pre-generated floors_occupied table for greater efficiency in case you need  to use it in multiple places.
 --- @param zone string the zone to compile the destination list for
 --- @param floors_occupied? table<string,table<integer,table<integer,boolean>>> the destination map returned by ```library:GetFlorsOccupied()```. If missing, it will be generated on the fly.
 --- @return {segment:integer, floor:integer, difficulty:string}[]
@@ -1968,7 +2027,9 @@ function library:GetValidDestinationsInZone(zone, floors_occupied)
     return dests
 end
 
---- @return destTable
+--- Initializes a destination table by calling ``library:GetValidZones`` and ``library.GetFloorsOccupied``,
+--- but leaving the "allowed" table empty for more efficient use later on.
+--- @return destTable the table that will be used for destination selection.
 function library:CompileDestinationData()
     return {
         destinations = self:GetValidZones(),
@@ -2000,8 +2061,7 @@ function library:GetDungeonsGuestCount()
 	return guest_count
 end
 
---- Tries to fill up as many empty slots as possible in the board. It will keep going from
---- wherever the board was at when this function was called.
+--- Tries to fill up as many empty slots as possible in the given board. It will keep going from wherever the board was at when this function was called.
 --- It is recommended to flush the board beforehand to ensure it is actually generating new jobs.
 --- @param board_id string the id of the board to generate jobs for
 --- @param dest_data destTable List of possible destination zones. It also gets updated in-place for coherent and quick reuse. If absent, it will be generated in-place.
@@ -2101,7 +2161,8 @@ function library:PopulateBoard(board_id, dest_data)
     end
 end
 
----@param job jobTable
+--- Checks if the given job's type requires a target item. If that's the case, it rolls a target item and stores it in the job's table.
+---@param job jobTable the job to give a target item to
 local rollTargetItem = function(job)
     if globals.job_types[job.Type].req_target_item then
         if library.data.target_items[job.Type] and #library.data.target_items[job.Type] > 0 then
@@ -2113,14 +2174,17 @@ local rollTargetItem = function(job)
     end
 end
 
----@param job jobTable
+--- Checks if the given job's type is allowed to hide its target floor. If that's the case, it decides whether or not to do so and stores the result of the roll in the job's table.
+---@param job jobTable the job to decide whether or not to hide the floor of
 local rollHiddenFloor = function(job)
     if globals.job_types[job.Type].can_hide_floor then
         if math.random() < library.data.hidden_floor_chance then job.HideFloor = true end
     end
 end
 
----@param job jobTable
+--- Checks if the given job's type has one or more special cases assigend to it. If that's the case, it decides whether or not to select one and then rolls on the available special case list.
+--- Finally, it stores the resulting special type in the job's table.
+---@param job jobTable the job to give a special type to
 local rollSpecial = function(job)
     if library.data.special_jobs[job.Type] and #library.data.special_jobs[job.Type]>0 then
         if math.random() < library.data.special_chance then
@@ -2129,9 +2193,14 @@ local rollSpecial = function(job)
     end
 end
 
----@param job jobTable
----@param client? string|monsterIDTable
----@param target? string|monsterIDTable
+--- Rolls the characters involved in the job, and normalizes their monsterid tables. It always chooses a client, but only selects a target if the job type requires it.
+--- Law enforcement job types will always have an enforcer character as their client.
+--- If the job has a special case assigned, this function will roll one of the scenarios assigned to it and store client, target and target item in the job's table,
+--- ignoring the default values provided.
+--- The values calculated ny this function are stored in the job's table.
+--- @param job jobTable the job to assign characters to
+--- @param client? string|monsterIDTable Optional default client
+--- @param target? string|monsterIDTable Optional default target
 local rollCharacters = function(job, client, target)
     ---@type (string|monsterIDTable)[]
     local characters = {}
@@ -2224,13 +2293,17 @@ local rollCharacters = function(job, client, target)
     if globals.job_types[job.Type].req_target then job.Target = library:NormalizeMonsterIDTable(characters[2]) end
 end
 
----@param job jobTable
----@param type? rewardType
----@param items? {[1]:string|itemTable, [2]:string|itemTable}
+--- Rolls reward types and items for the given job. If a reward type is provided, it wll be used directly, and any reward list will be ignored.
+--- If a reward item list is provided but not a reward type, the reward type will be inferred using the list.
+--- The values calculated by this function are stored in the job's table.
+--- @param job jobTable the job to assign reward data to
+--- @param type? rewardType Optional default reward type
+--- @param items? {[1]:string|itemTable, [2]:string|itemTable} Optional reward items list. Ignored if type is set
 local setupRewards = function(job, type, items)
     local xcl = false
     if type then
         job.RewardType = type
+        items = {}
     elseif items then --and not type
         local combo = 0
         if items[1] then combo = combo + 1 end
@@ -2270,10 +2343,10 @@ local setupRewards = function(job, type, items)
             reward_type = library:WeightedRandom(possible_reward_types).id --[[@as string]] --it is safe because we already checked there is at least 1 possible result
         end
         job.RewardType = reward_type
+        items = {}
     end
 
     --type has been set up. fill in item slots
-    items = {}
     local difficulty_id = library:NumToDifficulty(job.Difficulty)
     for i = 1, 2, 1 do
         if globals.reward_types[job.RewardType][i] then
@@ -2350,7 +2423,8 @@ local setupRewards = function(job, type, items)
     if globals.reward_types[job.RewardType][2] then job.Reward2 = { id = items[2].id, count = items[2].count, hidden = items[2].hidden } end
 end
 
----@param job jobTable
+--- Rolls flavor data for the given job and stores the result of the roll in the job's table.
+--- @param job jobTable the job to store flevor data in
 local rollFlavor = function(job)
     if job.Flavor[1] == "" then
         for i = 1, 2, 1 do
@@ -2363,7 +2437,8 @@ local rollFlavor = function(job)
     end
 end
 
----@param job jobTable
+--- Rolls a title for the given job and stores the result of the roll in the job's table.
+--- @param job jobTable the job to assign the title to
 local rollTitle = function(job)
     local title_group = job.Type
     if job.Special and job.Special ~= "" then
@@ -2377,20 +2452,20 @@ local rollTitle = function(job)
 end
 
 --- Generates a new job with the specified data. Location and job type are mandatory. Any other missing parameter will be generated randomly.
----@param zone string the id of the zone this job should take place in
----@param segment integer the index of the segment this job should take place in
----@param floor integer the floor this job should take place in, counting from 1
----@param job_type jobType the id of the job type to assign to this job
----@param client? string|monsterIDTable data that will be used for the client of this job
----@param target? string|monsterIDTable data that will be used for the target of this job. Only used if the job type requires a target
----@param target_item? string the id of the item that will be used as target. Only used if the job type requires an item
----@param reward_type? rewardType the combination of rewards that will be awarded for this job. If not set but rewards is, it will be inferred from the items used
----@param rewards? {[1]:string|itemTable, [2]:string|itemTable} the item rewards that will be awarded for this job. If not set but reward_type is, they will be generated automatically. If the first item is nil, it will award money in its place.
----@param title? string the title string key to use for this job. If not set, it will be chosen randomly.
----@param flavor? string[] the flavor string key or keys to use for this job. If not set, they will be chosen randomly.
----@param hide_floor? boolean if true, the job's floor will be hidden.
----@param objective_key? string a string key that will be used instead of the job_type's original one to display this job's objective.
----@return jobTable? #the new job, or nil if the job generation failed
+--- @param zone string the id of the zone this job should take place in
+--- @param segment integer the index of the segment this job should take place in
+--- @param floor integer the floor this job should take place in, counting from 1
+--- @param job_type jobType the id of the job type to assign to this job
+--- @param client? string|monsterIDTable data that will be used for the client of this job
+--- @param target? string|monsterIDTable data that will be used for the target of this job. Only used if the job type requires a target
+--- @param target_item? string the id of the item that will be used as target. Only used if the job type requires an item
+--- @param reward_type? rewardType the combination of rewards that will be awarded for this job. If not set but rewards is, it will be inferred from the items used
+--- @param rewards? {[1]:string|itemTable, [2]:string|itemTable} the item rewards that will be awarded for this job. If not set but reward_type is, they will be generated automatically. If the first item is nil, it will award money in its place.
+--- @param title? string the title string key to use for this job. If not set, it will be chosen randomly.
+--- @param flavor? string[] the flavor string key or keys to use for this job. If not set, they will be chosen randomly.
+--- @param hide_floor? boolean if true, the job's floor will be hidden.
+--- @param objective_key? string a string key that will be used instead of the job_type's original one to display this job's objective.
+--- @return jobTable? #the new job, or nil if the job generation failed
 function library:MakeNewJob(zone, segment, floor, job_type, client, target, target_item, reward_type, rewards, title, flavor, hide_floor, objective_key)
     local newJob = jobTemplate()
     newJob.Zone = zone
@@ -2436,6 +2511,9 @@ function library:MakeNewJob(zone, segment, floor, job_type, client, target, targ
     return newJob
 end
 
+--- Adds a job to a specific board, updating its BackReference in the process. This function ignores board limits.
+--- @param board_id string a board's string id
+--- @param job jobTable the job to add to the board
 function library:AddJobToBoard(board_id, job)
     job.BackReference = board_id
     table.insert(self.root.boards[board_id], job)
@@ -2446,72 +2524,67 @@ end
 --- @param board_id string the id of the board to interact with
 function library:BoardInteract(board_id)
     local choice = 1
-	while choice > 0 do
-		local job_selected = 1
-		choice = menus.BoardSelection.run(self, board_id, choice)
-		if choice == 1 then
-			while not self:IsBoardEmpty(board_id) do
-				job_selected = menus.Board.run(self, board_id, job_selected)
-				if job_selected > 0 then
-					local action = menus.Job.run(self, board_id, job_selected)
-					if action == 1 then
-						self:TakeJob(board_id, job_selected)
-					end
-				else break end
-			end
-		elseif choice == 2 then
-			--exit board menu if the taken list is empty
-			while not self:IsTakenListEmpty() do
-				job_selected = menus.Board.run(self, nil, job_selected)
-				if job_selected > 0 then
-					local action = menus.Job.run(self, nil, job_selected)
-					if action == 1 then
-						self:ToggleTakenJob(job_selected)
-					elseif action == 2 then
-						self:RemoveTakenJob(job_selected)
-					end
-				else break end
-			end
-		end
-	end
+    while choice > 0 do
+        local job_selected = 1
+        choice = menus.BoardSelection.run(self, board_id, choice)
+        if choice == 1 then
+            self:OpenBoardMenu(board_id, job_selected)
+        elseif choice == 2 then
+            self:OpenTakenMenu(job_selected)
+        end
+    end
+end
+
+--- Runs the script responsible for handling a specific board's BoardMenu.
+--- @param board_id string the id of the board to interact with
+--- @param default? integer the job that will be selected when first opening the menu. Defaults to 1.
+function library:OpenBoardMenu(board_id, default)
+	local job_selected = default or 1
+    --exit board menu if the board is empty
+    while not self:IsBoardEmpty(board_id) do
+        job_selected = menus.Board.run(self, board_id, job_selected)
+        if job_selected > 0 then
+            local action = menus.Job.run(self, board_id, job_selected)
+            if action == 1 then
+                self:TakeJob(board_id, job_selected)
+            end
+        else
+            break
+        end
+    end
+end
+
+--- Runs the script responsible for handling the taken list's BoardMenu.
+--- @param default? integer the job that will be selected when first opening the menu. Defaults to 1.
+function library:OpenTakenMenu(default)
+    local job_selected = default
+    --exit board menu if the taken list is empty
+    while not self:IsTakenListEmpty() do
+        job_selected = menus.Board.run(self, nil, job_selected)
+        if job_selected > 0 then
+            local action = menus.Job.run(self, nil, job_selected)
+            if action == 1 then
+                self:ToggleTakenJob(job_selected)
+            elseif action == 2 then
+                self:RemoveTakenJob(job_selected)
+            end
+        else
+            break
+        end
+    end
 end
 
 --- Runs the callback script responsible for interacting with the taken list.
---- This function is built as a callback chain and only works if used while already inside a menu handling routine.
+--- This function starts a coroutine as a way to mantain callback behavior consistecy.
 function library:OpenTakenMenuFromMain()
-    local job_selected = 1
-
-	local job_cb, board_cb
-    job_cb = function(index)
-        if index == 1 then
-            self:ToggleTakenJob(job_selected)
-            _MENU:RemoveMenu()
-            menus.Board.reset(self, nil, board_cb, job_selected)
-            menus.Job.add(self, nil, job_selected, job_cb)
-        elseif index == 2 then
-            self:RemoveTakenJob(job_selected)
-            _MENU:RemoveMenu()
-            menus.Board.reset(self, nil, board_cb, job_selected)
-        else
-            _MENU:RemoveMenu()
-        end
-    end
-    board_cb = function(index)
-        job_selected = index
-        if job_selected > 0 then
-            menus.Job.add(self, nil, job_selected, job_cb)
-        else
-            _MENU:RemoveMenu()
-        end
-    end
-
-    menus.Board.add(self, nil, board_cb, job_selected)
-    if self:IsTakenListEmpty() then _MENU:ClearMenus() end
+	_MENU:ClearMenus()
+    TASK:StartScriptLocalCoroutine(function()
+        self:OpenTakenMenu(1)
+    end)
+    --TODO UI:OpenMainMenu()
 end
 
-
 --- Runs the script responsible for displaying one specific job.
---- It will skip all previous menus and go to the job interaction menu directly.
 --- This function does not check if the job exists. Please call library:BoardJobExists before this.
 --- @param board_id string the id of the board to interact with
 --- @param index integer|nil The index of the job to show. If omitted, defaults to job 1 of the board.
@@ -2570,7 +2643,7 @@ function library:RemoveTakenJob(index)
     -- no need to sort here because they are guaranteed to be in order thanks to sorting every time a job is taken
 end
 
---- Changes a taken job's active status.
+--- Changes a taken job's active status. This function can trigger the ``JobDeactivate`` and``JobActivate`` events depending on the job's state.
 --- @param index integer The index of the job to toggle
 function library:ToggleTakenJob(index)
 	local job = self.root.taken[index]
@@ -2584,6 +2657,8 @@ function library:ToggleTakenJob(index)
 	self.root.taken[index].Taken = not self.root.taken[index].Taken
 end
 
+--- Marks a job as completed and activates the flag required for the job completion cutscene to run. This function triggers the ``JobComplete`` event.
+--- @param job jobTable The job being completed
 function library:MarkJobCompleted(job)
     local evt = callEvent(job, "JobComplete")
 	if evt.cancel then return end
@@ -2593,16 +2668,19 @@ function library:MarkJobCompleted(job)
 	end
 end
 
+--- Marks a job as failed. This function triggers the ``JobFail`` event.
+--- @param job jobTable The job being failed
 function library:MarkJobFailed(job)
     local evt = callEvent(job, "JobFail")
     if evt.cancel then return end
     job.Completion = globals.completion.Failed
 end
 
----@param job jobTable
----@param event eventId
----@param func string
----@param args? table
+--- Registers a new callback inside a job's callback table.
+---@param job jobTable the job to register the callback in
+---@param event eventId the id of the event to subscribe to
+---@param func string the name of the callback function. It must be stored inside the table set inside the ``mission_callback_root`` setting
+---@param args? table the table of arguments to pass to this instance of the callback. Defaults to ``{}``
 function library:RegisterCallback(job, event, func, args)
 	job.Callbacks[event] = {name = func, args = args or {}}
 end
@@ -2619,7 +2697,7 @@ end
 ---@param tm_allowed integer the maximum number of tm moves that the character is allowed to have. Defaults to 0
 ---@param tutor_allowed integer the maximum number of tutor moves that the character is allowed to have. Defaults to 0
 ---@param egg_allowed integer the maximum number of egg moves that the character is allowed to have. Defaults to 0
----@param blacklist referenceList list of move ids that must never be included in a moveset generated by this function
+---@param blacklist referenceSet list of move ids that must never be included in a moveset generated by this function
 ---@return slotType[] #the list of slot types chosen, in the order they were applied. Slot types are "stab", "coverage", "damage" and "status". Useful to apply changes later on.
 function library:AssignBossMoves(chara, tm_allowed, tutor_allowed, egg_allowed, blacklist)
     if RogueEssence.GameManager.Instance.CurrentScene ~= RogueEssence.Dungeon.DungeonScene.Instance then
@@ -2631,7 +2709,7 @@ function library:AssignBossMoves(chara, tm_allowed, tutor_allowed, egg_allowed, 
     local allowed = { level = 4 }
     allowed.tm, allowed.tutor, allowed.egg = tm_allowed or 0, tutor_allowed or 0, egg_allowed or 0
     local moveset_table = filterMoveset(chara, allowed.tm > 0, allowed.tutor > 0, allowed.egg > 0, blacklist)
-    ---@type table<"_Completed"|integer,synergyEntry|referenceList>
+    ---@type table<"_Completed"|integer,synergyEntry|referenceSet>
     local synergies = { _Completed = {} }
     ---@type slotType[][]
     local move_slot_options = {
@@ -2736,6 +2814,8 @@ function library:AskMissionWarpOut()
     end
 end
 
+--- Dungeon-only function that makes the entire team, guests included, turn towards a character.
+--- @param char any the character to turn towards
 function library:TeamTurnTo(char)
     if RogueEssence.GameManager.Instance.CurrentScene ~= RogueEssence.Dungeon.DungeonScene.Instance then
     	logError(globals.error_types.SCENE, "This function can only be called inside dungeons.")
@@ -2765,7 +2845,7 @@ end
 
 --- Meant to be called in ``COMMON.ShowDestinantonMenu``
 --- Creates a reference table whose keys are all the zones with at least one job in them.
----@return referenceList
+---@return referenceSet
 function library:LoadJobDestinations()
     local mission_dests = {}
     for _, job in ipairs(self.root.taken) do
@@ -2782,7 +2862,7 @@ end
 
 --- Meant to be called in ``COMMON.ShowDestinantonMenu``
 --- Takes a zone name and its id and returns a name string that also contains any related job and event icons.
---- @param mission_dests referenceList the set of job destinations
+--- @param mission_dests referenceSet the set of job destinations
 --- @param zone_id string the zone id string to format the name of
 --- @param zone_name string the starting name of the zone, as extracted from its ZoneEntrySummary
 --- @return string #the zone name string containing all the icons related to it.
@@ -3246,7 +3326,7 @@ function library:EscortInteract(_, _, context, _)
 
 	local target = "[color=#FF0000]???[color]"
     if job.Target then target = self:GetCharacterName(job.Target) end
-    local dungeon = self:CreateColoredSegmentString(job.Zone, job.Segment)
+    local dungeon = self:GetSegmentName(job.Zone, job.Segment)
     local item = self:GetItemName(job.Item)
 
 	local talk_options = self.data.escort_talks[job.Type]
@@ -3556,6 +3636,7 @@ function library:SpawnOutlaw(_, _, context, args)
 
         while #origins > 0 and #spawn_candidates<=0 do
             local origin, oIndex = self:WeightlessRandom(origins, true)
+            ---@cast origin {X:integer, Y:integer}
         	table.remove(origins, oIndex)
             for pos, radius in iter_spiral(origin, maxRadius, 2) do
                 if radius > minRadius and radius > lastradius and #spawn_candidates > 0 then break end
@@ -4028,7 +4109,7 @@ function library:ExplorationReached(_, _, context, args)
         local curr_segment = _ZONE.CurrentMapID.Segment
 
     	local escortName = escort:GetDisplayName(true)
-    	local dungeon_name = self:CreateColoredSegmentString(curr_zone, curr_segment)
+    	local dungeon_name = self:GetSegmentName(curr_zone, curr_segment)
         UI:ResetSpeaker()
         self.root.mission_flags.MissionCompleted = true
         self:MarkJobCompleted(job)
@@ -4137,11 +4218,4 @@ function library:MobilityEndTurn(_, _, _, _)
     end
 end
 
-
-
-
-
-
-
-library.globals = globals
 return library

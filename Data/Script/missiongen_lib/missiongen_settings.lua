@@ -1988,7 +1988,7 @@ local settings = {
     --- * {0}: target (or client, if there is no target)
     --- * {1}: dungeon
     --- * {2}: item
-    ---@type table<string, table<string,{client:monsterIDTable|string, target:monsterIDTable|string, item: string|nil, flavor:string}[]>>
+    ---@type table<string, table<string,{client:monsterIDTable|string, target:monsterIDTable|string|nil, item: string|nil, flavor:string}[]>>
     special_data = {
         LOVER = {
             TIER_LOW = {

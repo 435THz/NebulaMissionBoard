@@ -102,7 +102,7 @@ function BoardMenu:GenerateOptions()
     local choices = {}
     for i, job in pairs(self.board_content) do
         ---@cast job jobTable
-        local zone_str, floor_pattern = self.library:CreateColoredSegmentString(job.Zone, job.Segment)
+        local zone_str, floor_pattern = self.library:GetSegmentName(job.Zone, job.Segment)
         local target, item = "[color=#FF0000]TARGET[color]", "[color=#FF0000]ITEM[color]"
         if job.Target then target = self.library:GetCharacterName(job.Target) end
         if job.Item and job.Item ~= "" then item = self.library:GetItemName(job.Item) end
@@ -317,7 +317,7 @@ end
 
 function JobMenu:GenerateSummary()
     local summary = RogueEssence.Menu.SummaryMenu(RogueElements.Rect(32, 32, 256, 176))
-    local dungeon = self.library:CreateColoredSegmentString(self.job.Zone, self.job.Segment)
+    local dungeon = self.library:GetSegmentName(self.job.Zone, self.job.Segment)
     local target, item = "[color=#FF0000]TARGET[color]", "[color=#FF0000]ITEM[color]"
     if self.job.Target then target = self.library:GetCharacterName(self.job.Target) end
     if self.job.Item and self.job.Item ~= "" then item = self.library:GetItemName(self.job.Item) end
@@ -343,7 +343,7 @@ function JobMenu:GenerateSummary()
 
     summary.Elements:Add(RogueEssence.Menu.MenuText(self.library:GetCharacterName(self.job.Client),RogueElements.Loc(68, 54)))
     summary.Elements:Add(RogueEssence.Menu.MenuText(self.library:GetObjectiveString(self.job), RogueElements.Loc(68, 68)))
-    summary.Elements:Add(RogueEssence.Menu.MenuText(self.library:GetZoneString(self.job), RogueElements.Loc(68, 82)))
+    summary.Elements:Add(RogueEssence.Menu.MenuText(self.library:GetDestinationString(self.job), RogueElements.Loc(68, 82)))
     summary.Elements:Add(RogueEssence.Menu.MenuText(self.library:GetDifficultyString(self.job, true), RogueElements.Loc(68, 96)))
     summary.Elements:Add(RogueEssence.Menu.MenuText(self.library:GetRewardString(self.job), RogueElements.Loc(68, 110)))
 
@@ -412,7 +412,7 @@ function DungeonJobList:GenerateEntries()
     local list = {}
     local oth_segments = {}
     local oth_segments_list = {}
-    local _, floor_pattern = self.library:CreateColoredSegmentString(self.zone, self.segment)
+    local _, floor_pattern = self.library:GetSegmentName(self.zone, self.segment)
 
     local jobs = self.library.root.taken
     for _, job in ipairs(jobs) do
@@ -441,7 +441,7 @@ function DungeonJobList:GenerateEntries()
     if #oth_segments_list>0 then
         table.sort(oth_segments_list)
         for _, segment in ipairs(oth_segments_list) do
-            local seg_name = self.library:CreateColoredSegmentString(self.zone, segment)
+            local seg_name = self.library:GetSegmentName(self.zone, segment)
             local message = STRINGS:FormatKey(self.library.globals.keys.REACH_SEGMENT, seg_name)
             table.insert(list, {icon = nil, floor = nil, message = message})
         end
@@ -449,7 +449,7 @@ function DungeonJobList:GenerateEntries()
     if #list <= 0 then
         if _DATA.Save.Rescue ~= nil and _DATA.Save.Rescue.Rescuing then
             if self.segment ~= _DATA.Save.Rescue.SOS.Goal.StructID.Segment then
-                local seg_name = self.library:CreateColoredSegmentString(self.zone, _DATA.Save.Rescue.SOS.Goal.StructID.Segment)
+                local seg_name = self.library:GetSegmentName(self.zone, _DATA.Save.Rescue.SOS.Goal.StructID.Segment)
                 local message = STRINGS:FormatKey(self.library.globals.keys.REACH_SEGMENT, seg_name)
                 table.insert(list, {icon = nil, floor = nil, message = message})
             else
