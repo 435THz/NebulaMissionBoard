@@ -3196,7 +3196,9 @@ function library:AwardChar(job, char, talk)
         local level = self.data.difficulty_data[diff].escort_level
         local dungeon_default = not level
         if dungeon_default then level = zone_summary.Level end
-        level = self.data.guest_level_scaling(level, dungeon_default, party_avg, party_hst, self.data)
+        if self.data.guest_level_scaling then
+            level = self.data.guest_level_scaling(level, dungeon_default, party_avg, party_hst, self.data)
+        end
 
         local new_mob = _DATA.Save.ActiveTeam:CreatePlayer(_DATA.Save.Rand, mId, level, "", -1)
         new_mob.Nickname = nickname
