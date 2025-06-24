@@ -1278,7 +1278,12 @@ end
 --- @param board_id string the id of the board to check
 --- @return boolean|nil #true if the board's condition check passes, false otherwise. Returns nil if the board does not exist
 function library:IsBoardActive(board_id)
-    if self.data.boards[board_id] then return self.data.boards[board_id].condition(self) else return end
+    if self.data.boards[board_id] then
+    	if self.data.boards[board_id].condition then return self.data.boards[board_id].condition(self)
+    	else return true end
+    else
+        return
+    end
 end
 
 --- Checks if the player's taken job list is empty or not.
