@@ -3749,7 +3749,9 @@ function library:SpawnOutlaw(_, _, context, args)
             tactic = _DATA:GetAITactic("boss")
         end
 
-        self.data.apply_outlaw_changes(new_mob, job)
+        if self.data.apply_outlaw_changes then
+            self.data.apply_outlaw_changes(new_mob, job)
+        end
 
         if job.Type == "OUTLAW_ITEM" or job.Type == "OUTLAW_ITEM_UNK" then
             new_mob.EquippedItem = RogueEssence.Dungeon.InvItem(job.Item)
