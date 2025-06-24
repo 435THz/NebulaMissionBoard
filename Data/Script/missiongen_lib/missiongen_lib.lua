@@ -209,6 +209,11 @@ library.globals = globals
 
 --- Loads the root of the main data structure, generating the specified nodes if necessary.
 function library:load()
+    if _DIAG.DevMode then
+        local succ, checker = pcall(require, "missiongen_devcheck")
+        --TODO if succ then checker.check(self) end
+    end
+
     local rootpath = self.data.sv_root_name
     if type(rootpath) ~= "table" then
         ---@cast rootpath string[]
@@ -222,7 +227,7 @@ function library:load()
     self.root.mission_flags = self.root.mission_flags or {}
 	self:loadDifficulties()
 	self:generateBoards()
-	self:loadDungeonTable()
+    self:loadDungeonTable()
 end
 
 --- Loads the difficulty data and generates forward and backwards reference lists.
@@ -1274,7 +1279,7 @@ function library:GetBoardCount(board_id)
     if self.data.boards[board_id] then return #self.root.boards[board_id] end
 end
 
---- Checks if a board is active by running its condition check.
+--- Checks if a board is active by running its condition check. If a board has no check, it will be always active.
 --- @param board_id string the id of the board to check
 --- @return boolean|nil #true if the board's condition check passes, false otherwise. Returns nil if the board does not exist
 function library:IsBoardActive(board_id)
