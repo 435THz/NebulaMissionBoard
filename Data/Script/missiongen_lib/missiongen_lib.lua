@@ -3717,7 +3717,10 @@ function library:SpawnOutlaw(_, _, context, args)
             	orig_level = zone.Level
             end
         end
-        local level = self.data.outlaw_level_scaling(orig_level, dungeon_default, party_avg, party_hst, self.data)
+        local level = orig_level
+        if self.data.outlaw_level_scaling then
+            self.data.outlaw_level_scaling(orig_level, dungeon_default, party_avg, party_hst, self.data)
+        end
         local ability = form:RollIntrinsic(_DATA.Save.Rand, 3)
         mob_data.BaseIntrinsics[0] = ability
         local new_mob = RogueEssence.Dungeon.Character(mob_data)
