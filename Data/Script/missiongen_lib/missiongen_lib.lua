@@ -3109,8 +3109,9 @@ function library:PlayJobsCompletedCutscene(callback)
         end
     end
 	self.root.mission_flags.MissionCompleted = false
-	self.temp.reward_job_index = nil
-    self.data.after_rewards_function()
+    self.temp.reward_job_index = nil
+	if self.data.after_rewards_function then
+    self.data.after_rewards_function() end
 	self:UpdateBoards()
     GAME:CutsceneMode(false)
 end
