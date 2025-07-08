@@ -132,7 +132,7 @@ local settings = {
     --- * extra_reward: the points of extra reward awarded at the end of the job. What these points are depends on extra_reward_type. If set to 0, extra_reward_type will be considered to be "none"
     --- * outlaw_level: Optional. The base level of all outlaws spawned by jobs with this difficulty. If omitted, it will be equal to the dungeon's expected level.
     --- * escort_level: Optional. The level of all guests spawned by jobs with this difficulty. If omitted, it will be equal to the dungeon's expected level.
-    ---@type table<string, {display_key:string, money_reward:integer, extra_reward:integer, outlaw_level:integer, escort_level:integer}>
+    ---@type table<string, {display_key:string, money_reward:integer, extra_reward:integer, outlaw_level:integer|nil, escort_level:integer|nil}>
     difficulty_data = {
         F = {display_key = "RANK_STRING_F", money_reward = 100, extra_reward = 0},
         E = {display_key = "RANK_STRING_E", money_reward = 200, extra_reward = 100},
@@ -213,7 +213,7 @@ local settings = {
     ---   jobs will not be generated for this dungeon, and all already taken jobs will be automatically suspended.
     --- * message_key: Optional. It will be used in the objectives log instead of the default message if the condition is true.
     --- * message_args: Optional. If the message's localization string contains placeholders, this function is in charge of
-    --- returning a list of values that will be used for those placeholders in the form of a table array (Up to 5).
+    ---   returning a list of values that will be used for those placeholders in the form of a table array (Up to 5).
     --- * icon: Optional. The icon that will be displayed beside the corresponding dungeon in the dungeon selection menu
     ---   if the condition is true for any of its segments. Defaults to ""
     ---@type {condition:fun(zone:string):(boolean), message_key:string|nil,
@@ -1493,8 +1493,8 @@ local settings = {
     --- A list of Pokémon that will be used for job generation, sorted by arbitrary quest tiers.
     --- Any of these entries may be picked when choosing client and target.
     --- If the client picked is not in the dex, the reward type can never be "client" nor "exclusive"
-    --- Format: <tier> = {<monster_id>}
-    --- * <tier> = one of the tier ids used in difficulty_to_tier
+    --- Format: \<tier> = {<monster_id>}
+    --- * \<tier> = one of the tier ids used in difficulty_to_tier
     --- * <monster_id> = either the species id of a pokémon or a monsterId table
     --- @type table<string,(string|monsterIDTable)[]>
     pokemon = {
@@ -1930,7 +1930,6 @@ local settings = {
     },
     --- Law enforcement characters in your setting. All OUTLAW jobs except OUTLAW_ITEM
     --- and OUTLAW_ITEM_UNK use these characters as job clients.
-    --- You are be required to specify at least species and gender. Nickname, form and skin are optional.
     --- You may specify only 1 officer, and then a list containing any number of agents. 2 will be randomly
     --- picked every time the job completion cutscene is played.
     --- You may add a weight property to agents to specify a custom chance of being picked. Any without will
@@ -1950,12 +1949,12 @@ local settings = {
     },
     --- Defines the chance of either the officer or an agent being the client of a mission depending on
     --- the character tier of the mission, as defined in difficulty_to_tier.
-    --- Format: <tier> = {id = string, weight = integer}
-    --- * <tier> = one of the tier ids used in difficulty_to_tier
+    --- Format: \<tier> = {id = string, weight = integer}
+    --- * \<tier> = one of the tier ids used in difficulty_to_tier
     --- * id = One of: OFFICER, AGENT
     --- * index: Optional. Ignored if id is OFFICER. You can set it to specify a specific agent instead of rolling using their chance in "law_enforcement".
     --- * weight: Chance of being picked. Set to 0 or delete altogether to stop an entry from being picked.
-    --- @type table<string,{id:string, index:integer, weight:integer}[]>
+    --- @type table<string,{id:"OFFICER"|"AGENT", index:integer|nil, weight:integer}[]>
     enforcer_chance = {
         TIER_LOW = {
             {id = "OFFICER", weight = 2},
@@ -1975,20 +1974,20 @@ local settings = {
     --- In outlaw related quests, you may use ENFORCER as a keyword for a random law enforcement character.
     --- You may also use OFFICER or AGENT to require specific characters.
     --- These keywords can only be used in place of MonsterIDTables.
-    --- Format: <special_type> = {<tier> = {client = MonsterIDTable, target = MonsterIDTable, item = string, flavor = string}}
+    --- Format: <special_type> = {\<tier> = {client = MonsterIDTable, target = MonsterIDTable, item = string, flavor = string}}
     --- * <special_type> = an id of your choosing. It must be different from any basic job id
-    --- * <tier> = one of the tier ids used in difficulty_to_tier
+    --- * \<tier> = one of the tier ids used in difficulty_to_tier
     --- * client = the data used to generate this Pokémon.
     --- * target = the data used to generate this Pokémon.  Only used in job types that require a target.
     --- * item = the id of the item that will be used for this job. Only used in job types that require an item.
-    --- * flavor: flavor string key used for the job
+    --- * flavor: flavor string key used for the job, sourced from the Menu Text list (strings.resx)
     --- Format of MonsterIDTable: see the "monsterIdTemplate" function in missiongen_lib.lua
     ---
     --- Localization plaeholders:
     --- * {0}: target (or client, if there is no target)
     --- * {1}: dungeon
     --- * {2}: item
-    ---@type table<string, table<string,{client:monsterIDTable|string, target:monsterIDTable|string|nil, item: string|nil, flavor:string}[]>>
+    ---@type table<string, table<string,{client:monsterIDTable|"ENFORCER"|"OFFICER"|"AGENT", target:monsterIDTable|string|nil, item: string|nil, flavor:string}[]>>
     special_data = {
         LOVER = {
             TIER_LOW = {
