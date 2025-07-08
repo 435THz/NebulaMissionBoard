@@ -4,10 +4,10 @@
 -- This is the main library file containing all functions and callbacks.
 -- If you need to configure your data, please refer to missiongen_settings.lua
 -- ----------------------------------------------------------------------------------------- --
--- You will need to load this file using the require() function, preferably in a global
--- variable. You should never load this file more than once.
+-- You will need to load this file using the require() function, and save it in a
+-- global variable. You should never load this file more than once.
 -- ----------------------------------------------------------------------------------------- --
--- This file also comes with a pre-installed set of menus for mission display.
+-- This library's documentation has been written using intellij idea with the sumnekolua plugin.
 
 --- @alias referenceSet table<string,boolean> a generic set whose keys are strings and whose values are always ``true``
 --- @alias LibraryRootStruct {boards:table<string,jobTable[]>,taken:jobTable[],dungeon_progress:table<string,table<integer, boolean>>,mission_flags:table<string, any>,previous_limit:integer,escort_jobs:integer} the structure of library.root

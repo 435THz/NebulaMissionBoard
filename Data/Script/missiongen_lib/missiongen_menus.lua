@@ -1,3 +1,13 @@
+-- PMDO Mission Generation Library, by MistressNebula
+-- Menu file
+-- ----------------------------------------------------------------------------------------- --
+-- This file contains all menus used by the library, separated from the main systems for
+-- organization purposes.
+-- If you are looking for the main systems, please refer to missiongen_lib.lua
+-- ----------------------------------------------------------------------------------------- --
+-- This file is already loaded by missiongen_lib.lua. You don't need to require it
+-- explicitly in your project unless you want to use the classes within in a more direct way.
+
 
 local menus = {
     LINE_HEIGHT = 12,

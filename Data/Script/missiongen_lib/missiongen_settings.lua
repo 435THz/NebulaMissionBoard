@@ -6,6 +6,9 @@
 -- ----------------------------------------------------------------------------------------- --
 -- This file is already loaded by missiongen_lib.lua. You don't need to require it
 -- explicitly in your project.
+-- ----------------------------------------------------------------------------------------- --
+-- Make sure to also check the missiongen_service.lua file and ensure it will be able to
+-- access the library by changing its "library_name" variable if necessary.
 
 --- @alias jobType "RESCUE_SELF"|"RESCUE_FRIEND"|"ESCORT"|"EXPLORATION"|"DELIVERY"|"LOST_ITEM"|"OUTLAW"|"OUTLAW_ITEM"|"OUTLAW_ITEM_UNK"|"OUTLAW_MONSTER_HOUSE"|"OUTLAW_FLEE"
 --- @alias rewardType "money"|"item"|"money_item"|"item_item"|"client"|"exclusive"

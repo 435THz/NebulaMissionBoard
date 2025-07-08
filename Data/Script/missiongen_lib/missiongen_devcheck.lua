@@ -1,23 +1,14 @@
---- This file is a big debug function used by the library only when loading during dev mode. It checks all settings in
---- missiongen_settings.lua to ensure consistency in their data structures.
---- The libarry's load routine tries to run this file in protected mode, so deleting it does not cause any issues.
+-- PMDO Mission Generation Library, by MistressNebula
+-- Debug file
+-- ----------------------------------------------------------------------------------------- --
+-- This file is a big debug function used by the library only when loading during dev mode.
+-- It checks all settings in missiongen_settings.lua to make sure their data structures are
+-- correct, and to ensure consistency in the provided data.
+-- ----------------------------------------------------------------------------------------- --
+-- The library's loading routine tries to run this file in protected mode, so deleting it
+-- does not cause any issues other than disable this debug routine altogether.
 
-local values = {}
----@type table<string, boolean>
-values.difficulties = {}
----@type table<string, boolean>
-values.dungeons = {}
----@type table<string, boolean>
-values.job_types = {}
----@type table<string, boolean>
-values.reward_pools = {}
----@type table<string, {pokemon:boolean, enforcer_chance:boolean, special_data:table<string, boolean>}>
-values.data_tiers = {}
----@type table<string, boolean>
-values.special_types = {}
-values.special = false
-
-local errors, warns = 0, 0
+local errors, warns
 
 local LogError = function(msg)
     PrintInfo("[ERROR] " .. tostring(msg))
@@ -112,6 +103,23 @@ function checker.checkGroundLocationTable(loc, print_path)
 end
 
 function checker.check(library)
+    local values = {}
+    ---@type table<string, boolean>
+    values.difficulties = {}
+    ---@type table<string, boolean>
+    values.dungeons = {}
+    ---@type table<string, boolean>
+    values.job_types = {}
+    ---@type table<string, boolean>
+    values.reward_pools = {}
+    ---@type table<string, {pokemon:boolean, enforcer_chance:boolean, special_data:table<string, boolean>}>
+    values.data_tiers = {}
+    ---@type table<string, boolean>
+    values.special_types = {}
+    values.special = false
+
+    errors, warns = 0, 0
+
     local settings = library.data --require("missiongen_lib.missiongen_settings")
     LogInfo("Running sanity checker from missiongen_devcheck.lua")
 
@@ -136,7 +144,8 @@ function checker.check(library)
     elseif type(settings.difficulty_list) == "table" then
         for _, diff in ipairs(settings.difficulty_list) do
             if type(diff) ~= "string" then
-                LogWarn("\"difficulty_list\" contains an id of type \"" .. type(diff) .. "\". All difficulty ids should be strings.")
+                LogWarn("\"difficulty_list\" contains an id of type \"" ..
+                type(diff) .. "\". All difficulty ids should be strings.")
             end
             values.difficulties[diff] = true
         end
@@ -155,32 +164,70 @@ function checker.check(library)
                         if index >= 0 and index < zone.Segments.Count then
                             if type(segment_data) == "table" then
                                 if not type(segment_data.max_floor) == "number" then
-                                    LogError("\"dungeons[" .. tostring(id) .. "][" .. tostring(index) .. "].max_floor\" is not a number. This will cause the library to fail.")
+                                    LogError("\"dungeons[" ..
+                                    tostring(id) ..
+                                    "][" ..
+                                    tostring(index) ..
+                                    "].max_floor\" is not a number. This will cause the library to fail.")
                                 end
-                                if not EqualToAny(type(segment_data.must_end), {"boolean", "nil"}) then
-                                    LogWarn("\"dungeons[" .. tostring(id) .. "][" .. tostring(index) .. "].must_end\" is not boolean or nil. This may lead to unintended results.")
+                                if not EqualToAny(type(segment_data.must_end), { "boolean", "nil" }) then
+                                    LogWarn("\"dungeons[" ..
+                                    tostring(id) ..
+                                    "][" ..
+                                    tostring(index) ..
+                                    "].must_end\" is not boolean or nil. This may lead to unintended results.")
                                 end
                                 for idx, section in pairs(segment_data.sections) do
                                     if type(section) == "table" then
                                         if not type(section.start) == "number" then
-                                            LogError("\"dungeons[" .. tostring(id) .. "][" .. tostring(index) .. "].sections[" .. tostring(idx) .. "].start\" is not a number. This may cause the library to fail.")
+                                            LogError("\"dungeons[" ..
+                                            tostring(id) ..
+                                            "][" ..
+                                            tostring(index) ..
+                                            "].sections[" ..
+                                            tostring(idx) ..
+                                            "].start\" is not a number. This may cause the library to fail.")
                                         end
                                         if type(section.difficulty) == "string" then
                                             if not values.difficulties[section.difficulty] then
-                                                LogWarn("Value " .. tostring(section.difficulty) .. " of \"dungeons[" .. tostring(id) .. "][" .. tostring(index) .. "].sections[" .. tostring(idx) .. "].difficulty\" does not correspond to any defined difficulty id. It will be treated as if it was the difficulty of index 1.")
+                                                LogWarn("Value " ..
+                                                tostring(section.difficulty) ..
+                                                " of \"dungeons[" ..
+                                                tostring(id) ..
+                                                "][" ..
+                                                tostring(index) ..
+                                                "].sections[" ..
+                                                tostring(idx) ..
+                                                "].difficulty\" does not correspond to any defined difficulty id. It will be treated as if it was the difficulty of index 1.")
                                             end
                                         else
-                                            LogWarn("\"dungeons[" .. tostring(id) .. "][" .. tostring(index) .. "].sections[" .. tostring(idx) .. "].difficulty\" is not a string. It will be treated as if it was the difficulty of index 1.")
+                                            LogWarn("\"dungeons[" ..
+                                            tostring(id) ..
+                                            "][" ..
+                                            tostring(index) ..
+                                            "].sections[" ..
+                                            tostring(idx) ..
+                                            "].difficulty\" is not a string. It will be treated as if it was the difficulty of index 1.")
                                         end
                                     else
-                                        LogError("\"dungeons[" .. tostring(id) .. "][" .. tostring(index) .. "].sections[" .. tostring(idx) .. "]\" is not a table. This may cause the library to fail.")
+                                        LogError("\"dungeons[" ..
+                                        tostring(id) ..
+                                        "][" ..
+                                        tostring(index) ..
+                                        "].sections[" ..
+                                        tostring(idx) .. "]\" is not a table. This may cause the library to fail.")
                                     end
                                 end
                             else
-                                LogError("\"dungeons[" .. tostring(id) .. "][" .. tostring(index) .. "]\" is not a table. This will cause the library to fail.")
+                                LogError("\"dungeons[" ..
+                                tostring(id) ..
+                                "][" .. tostring(index) .. "]\" is not a table. This will cause the library to fail.")
                             end
                         else
-                            LogError("\"" .. tostring(id) .. "\" does not contain a segment of index " .. tostring(index) .. ". This may cause the library to fail.")
+                            LogError("\"" ..
+                            tostring(id) ..
+                            "\" does not contain a segment of index " ..
+                            tostring(index) .. ". This may cause the library to fail.")
                         end
                     end
                 else
@@ -213,15 +260,22 @@ function checker.check(library)
         for id, val in pairs(settings.job_types) do
             if type(id) == "string" and library.globals.job_types[id] then
                 if not EqualToAny(type(val.rank_modifier), { "number", "nil" }) then
-                    LogWarn("\"job_types[" .. tostring(id) .. "].rank_modifier\" is not number or nil. This will cause the library to fail.")
+                    LogWarn("\"job_types[" ..
+                    tostring(id) .. "].rank_modifier\" is not number or nil. This will cause the library to fail.")
                 end
                 if val.min_rank then
                     if type(val.min_rank) == "string" then
                         if not values.difficulties[val.min_rank] then
-                            LogWarn("Value " .. tostring(val.min_rank) .. " of \"job_types[" .. tostring(id) .. "].min_rank\" does not correspond to any defined difficulty id. It will be treated as if it was the difficulty of index 1.")
+                            LogWarn("Value " ..
+                            tostring(val.min_rank) ..
+                            " of \"job_types[" ..
+                            tostring(id) ..
+                            "].min_rank\" does not correspond to any defined difficulty id. It will be treated as if it was the difficulty of index 1.")
                         end
                     else
-                        LogWarn("\"job_types[" .. tostring(id) .. "].min_rank\" is not a string. It will be treated as if it was the difficulty of index 1.")
+                        LogWarn("\"job_types[" ..
+                        tostring(id) ..
+                        "].min_rank\" is not a string. It will be treated as if it was the difficulty of index 1.")
                     end
                 end
                 values.job_types[id] = true
@@ -242,17 +296,22 @@ function checker.check(library)
                     if type(job) == "string" and library.globals.job_types[job] then
                         if values.job_types[job] then
                             if type(mult) ~= "number" then
-                                LogError("\"dungeon_job_modifiers[" .. tostring(id) .. "][" .. tostring(job) .. "]\" is not a number. This may cause the library to fail.")
+                                LogError("\"dungeon_job_modifiers[" ..
+                                tostring(id) ..
+                                "][" .. tostring(job) .. "]\" is not a number. This may cause the library to fail.")
                             end
                         else
-                            LogWarn("Unused job id \"" .. tostring(job) .. "\" found inside \"dungeon_job_modifiers[" .. tostring(id) .. "]\"")
+                            LogWarn("Unused job id \"" ..
+                            tostring(job) .. "\" found inside \"dungeon_job_modifiers[" .. tostring(id) .. "]\"")
                         end
                     else
-                        LogWarn("Invalid job id \"" .. tostring(job) .. "\" found inside \"dungeon_job_modifiers[" .. tostring(id) .. "]\".")
+                        LogWarn("Invalid job id \"" ..
+                        tostring(job) .. "\" found inside \"dungeon_job_modifiers[" .. tostring(id) .. "]\".")
                     end
                 end
             else
-                LogError("\"dungeon_job_modifiers[" .. tostring(id) .. "]\" is not a table. This may cause the library to fail.")
+                LogError("\"dungeon_job_modifiers[" ..
+                tostring(id) .. "]\" is not a table. This may cause the library to fail.")
             end
         end
     else
@@ -283,15 +342,20 @@ function checker.check(library)
                                 values.special_types[entry] = false
                             else
                                 if values.special then
-                                    LogWarn("Index " .. tostring(i) .. " of \"special_jobs[" .. tostring(id) .. "]\" is not a string. This may lead to unintended results.")
+                                    LogWarn("Index " ..
+                                    tostring(i) ..
+                                    " of \"special_jobs[" ..
+                                    tostring(id) .. "]\" is not a string. This may lead to unintended results.")
                                 else
-                                    LogWarn("Index " .. tostring(i) .. " of \"special_jobs[" .. tostring(id) .. "]\" is not a string.")
+                                    LogWarn("Index " ..
+                                    tostring(i) .. " of \"special_jobs[" .. tostring(id) .. "]\" is not a string.")
                                 end
                             end
                         end
                     else
                         if values.special then
-                            LogError("\"special_jobs[" .. tostring(id) .. "]\" is not a table. This may cause the library to fail.")
+                            LogError("\"special_jobs[" ..
+                            tostring(id) .. "]\" is not a table. This may cause the library to fail.")
                         else
                             LogWarn("\"special_jobs[" .. tostring(id) .. "]\" is not a table.")
                         end
@@ -317,20 +381,27 @@ function checker.check(library)
         for i, tbl in ipairs(settings.reward_types) do
             if type(tbl) == "table" then
                 if type(tbl.id) ~= "string" or not library.globals.reward_types[tbl.id] then
-                    LogWarn("Invalid reward type id \"" .. tostring(tbl.id) .. "\" found inside \"reward_types[" .. tostring(i) .. "]\".")
+                    LogWarn("Invalid reward type id \"" ..
+                    tostring(tbl.id) .. "\" found inside \"reward_types[" .. tostring(i) .. "]\".")
                 end
                 if tbl.min_rank then
                     if type(tbl.min_rank) ~= "string" or not values.difficulties[tbl.min_rank] then
-                        LogWarn("Value " .. tostring(tbl.min_rank) .. " of \"reward_types[" .. tostring(i) .. "].min_rank\" does not correspond to any defined difficulty id. It will be treated as if it was the difficulty of index 1.")
+                        LogWarn("Value " ..
+                        tostring(tbl.min_rank) ..
+                        " of \"reward_types[" ..
+                        tostring(i) ..
+                        "].min_rank\" does not correspond to any defined difficulty id. It will be treated as if it was the difficulty of index 1.")
                     end
                 end
                 if tbl.weight then
                     if type(tbl.weight) == "number" then
-                        if tbl.weight<0 then
-                            LogWarn("\"reward_types[" .. tostring(i) .. "].weight\" is less than 0. This may lead to unintended results.")
+                        if tbl.weight < 0 then
+                            LogWarn("\"reward_types[" ..
+                            tostring(i) .. "].weight\" is less than 0. This may lead to unintended results.")
                         end
                     else
-                        LogError("\"reward_types[" .. tostring(i) .. "].weight\" is not number or nil. This may cause the library to fail.")
+                        LogError("\"reward_types[" ..
+                        tostring(i) .. "].weight\" is not number or nil. This may cause the library to fail.")
                     end
                 end
             else
@@ -350,28 +421,47 @@ function checker.check(library)
                 for i, pool in ipairs(pools) do
                     if type(pool) == "table" then
                         if type(pool.id) ~= "string" then
-                            LogWarn("\"rewards_per_difficulty[" .. tostring(diff) .. "][" .. tostring(i) .. "].id\" is of type \"" .. type(pool.id) .. "\". All pool ids should be strings.")
+                            LogWarn("\"rewards_per_difficulty[" ..
+                            tostring(diff) ..
+                            "][" ..
+                            tostring(i) ..
+                            "].id\" is of type \"" .. type(pool.id) .. "\". All pool ids should be strings.")
                         end
                         if settings.reward_pools[pool.id] then
                             values.reward_pools[pool.id] = true
                         else
-                            LogError("\"rewards_per_difficulty[" .. tostring(diff) .. "][" .. tostring(i) .. "]\" refers to undefined pool \"" .. tostring(pool.id) .. ".This may cause the library to fail.")
+                            LogError("\"rewards_per_difficulty[" ..
+                            tostring(diff) ..
+                            "][" ..
+                            tostring(i) ..
+                            "]\" refers to undefined pool \"" ..
+                            tostring(pool.id) .. ".This may cause the library to fail.")
                         end
                         if pool.weight then
                             if type(pool.weight) == "number" then
                                 if pool.weight < 0 then
-                                    LogWarn("\"rewards_per_difficulty[" .. tostring(diff) .. "][" .. tostring(i) .. "].weight\" is less than 0. This may lead to unintended results.")
+                                    LogWarn("\"rewards_per_difficulty[" ..
+                                    tostring(diff) ..
+                                    "][" ..
+                                    tostring(i) .. "].weight\" is less than 0. This may lead to unintended results.")
                                 end
                             else
-                                LogError("\"rewards_per_difficulty[" .. tostring(diff) .. "][" .. tostring(i) .. "].weight\" is not number or nil. This may cause the library to fail.")
+                                LogError("\"rewards_per_difficulty[" ..
+                                tostring(diff) ..
+                                "][" ..
+                                tostring(i) .. "].weight\" is not number or nil. This may cause the library to fail.")
                             end
                         end
                     else
-                        LogError("\"rewards_per_difficulty[" .. tostring(diff) .. "][" .. tostring(i) .. "]\" is not a table. This may cause the library to fail.")
+                        LogError("\"rewards_per_difficulty[" ..
+                        tostring(diff) ..
+                        "][" .. tostring(i) .. "]\" is not a table. This may cause the library to fail.")
                     end
                 end
             else
-                LogError("Difficulty id\"" .. tostring(diff) .. "\" has no reward pools assigned to it inside \"rewards_per_difficulty\". This may cause the library to fail.")
+                LogError("Difficulty id\"" ..
+                tostring(diff) ..
+                "\" has no reward pools assigned to it inside \"rewards_per_difficulty\". This may cause the library to fail.")
             end
         end
     else
@@ -379,7 +469,8 @@ function checker.check(library)
     end
     for diff in pairs(settings.rewards_per_difficulty) do
         if not values.difficulties then
-            LogWarn("Reward pool with difficulty id \"" .. tostring(diff) .. "\" is unused because no such difficulty exists.")
+            LogWarn("Reward pool with difficulty id \"" ..
+            tostring(diff) .. "\" is unused because no such difficulty exists.")
         end
     end
 
@@ -389,38 +480,60 @@ function checker.check(library)
         for id, pool in pairs(settings.reward_pools) do
             values.reward_pools[id] = values.reward_pools[id] or false
             if type(id) ~= "string" then
-                LogWarn("\"reward_pools\" contains an id of type \"" .. type(id) .. "\". All reward pool ids should be strings.")
+                LogWarn("\"reward_pools\" contains an id of type \"" ..
+                type(id) .. "\". All reward pool ids should be strings.")
             end
             if type(pool) == "table" then
                 for i, entry in ipairs(pool) do
                     if type(entry) == "table" then
                         if type(entry.id) ~= "string" then
-                            LogWarn("\"reward_pools[" .. tostring(id) .. "][" .. tostring(i) .. "].id\" is of type \"" .. type(entry.id) .. "\". All pool ids should be strings.")
+                            LogWarn("\"reward_pools[" ..
+                            tostring(id) ..
+                            "][" ..
+                            tostring(i) ..
+                            "].id\" is of type \"" .. type(entry.id) .. "\". All pool ids should be strings.")
                         end
                         if settings.reward_pools[entry.id] then
                             values.reward_pools[entry.id] = true
                         else
                             if not _DATA.DataIndices[RogueEssence.Data.DataManager.DataType.Item]:ContainsKey(entry.id) then
-                                LogError("Pool entry id \"" .. tostring(entry.id) .. "\" in \"reward_pools[" .. tostring(id) .. "][" .. tostring(i) .. "]\" does not correspond to an item nor another pool. This may cause the library to fail.")
+                                LogError("Pool entry id \"" ..
+                                tostring(entry.id) ..
+                                "\" in \"reward_pools[" ..
+                                tostring(id) ..
+                                "][" ..
+                                tostring(i) ..
+                                "]\" does not correspond to an item nor another pool. This may cause the library to fail.")
                             end
                         end
                         if entry.weight then
                             if type(entry.weight) == "number" then
                                 if entry.weight < 0 then
-                                    LogWarn("\"reward_pools[" .. tostring(id) .. "][" .. tostring(i) .. "].weight\" is less than 0. This may lead to unintended results.")
+                                    LogWarn("\"reward_pools[" ..
+                                    tostring(id) ..
+                                    "][" ..
+                                    tostring(i) .. "].weight\" is less than 0. This may lead to unintended results.")
                                 end
                             else
-                                LogError("\"reward_pools[" .. tostring(id) .. "][" .. tostring(i) .. "].weight\" is not number or nil. This may cause the library to fail.")
+                                LogError("\"reward_pools[" ..
+                                tostring(id) ..
+                                "][" ..
+                                tostring(i) .. "].weight\" is not number or nil. This may cause the library to fail.")
                             end
                         end
                         if not EqualToAny(type(entry.count), { "number", "nil" }) then
-                            LogError("\"reward_pools[" .. tostring(id) .. "][" .. tostring(i) .. "].count\" is not number or nil. This may cause the library to fail.")
+                            LogError("\"reward_pools[" ..
+                            tostring(id) ..
+                            "][" .. tostring(i) .. "].count\" is not number or nil. This may cause the library to fail.")
                         end
                         if not EqualToAny(type(entry.hidden), { "string", "nil" }) then
-                            LogError("\"reward_pools[" .. tostring(id) .. "][" .. tostring(i) .. "].hidden\" is not string or nil. This may cause the library to fail.")
+                            LogError("\"reward_pools[" ..
+                            tostring(id) ..
+                            "][" .. tostring(i) .. "].hidden\" is not string or nil. This may cause the library to fail.")
                         end
                     else
-                        LogError("\"reward_pools[" .. tostring(id) .. "][" .. tostring(i) .. "]\" is not a table. This may cause the library to fail.")
+                        LogError("\"reward_pools[" ..
+                        tostring(id) .. "][" .. tostring(i) .. "]\" is not a table. This may cause the library to fail.")
                     end
                 end
             else
@@ -445,19 +558,31 @@ function checker.check(library)
                     if type(settings.target_items[job]) == "table" then
                         for i, item in ipairs(settings.target_items[job]) do
                             if _DATA.DataIndices[RogueEssence.Data.DataManager.DataType.Item]:ContainsKey(item) then
-                                local item_summary = _DATA.DataIndices[RogueEssence.Data.DataManager.DataType.Item]:Get(item)
+                                local item_summary = _DATA.DataIndices[RogueEssence.Data.DataManager.DataType.Item]:Get(
+                                item)
                                 if item_summary.MaxStack > 1 then
-                                    LogWarn("Item \"" .. tostring(item) .. "\" in \"target_items[" .. tostring(job) .. "][" .. tostring(i) .. "]\" is stackable. This may lead to unintended results.")
+                                    LogWarn("Item \"" ..
+                                    tostring(item) ..
+                                    "\" in \"target_items[" ..
+                                    tostring(job) ..
+                                    "][" .. tostring(i) .. "]\" is stackable. This may lead to unintended results.")
                                 end
                             else
-                                LogError("Entry id \"" .. tostring(item) .. "\" in \"target_items[" .. tostring(job) .. "][" .. tostring(i) .. "]\" does not correspond to an item. This may cause the library to fail.")
+                                LogError("Entry id \"" ..
+                                tostring(item) ..
+                                "\" in \"target_items[" ..
+                                tostring(job) ..
+                                "][" ..
+                                tostring(i) .. "]\" does not correspond to an item. This may cause the library to fail.")
                             end
                         end
                     else
-                        LogError("\"target_items[" .. tostring(job) .. "]\" is not a table. This may cause the library to fail.")
+                        LogError("\"target_items[" ..
+                        tostring(job) .. "]\" is not a table. This may cause the library to fail.")
                     end
                 else
-                    LogError("Missing \"target_items\" table for job type \"" .. tostring(job) .. "\". This may cause the library to fail.")
+                    LogError("Missing \"target_items\" table for job type \"" ..
+                    tostring(job) .. "\". This may cause the library to fail.")
                 end
             end
         end
@@ -474,24 +599,38 @@ function checker.check(library)
                 for i, pool in ipairs(pools) do
                     if type(pool) == "table" then
                         if type(pool.id) ~= "string" then
-                            LogWarn("\"rewards_per_difficulty[" .. tostring(diff) .. "][" .. tostring(i) .. "].id\" is of type \"" .. type(pool.id) .. "\". All pool ids should be strings.")
+                            LogWarn("\"rewards_per_difficulty[" ..
+                            tostring(diff) ..
+                            "][" ..
+                            tostring(i) ..
+                            "].id\" is of type \"" .. type(pool.id) .. "\". All pool ids should be strings.")
                         end
                         values.data_tiers[pool.id] = {}
                         if pool.weight then
                             if type(pool.weight) == "number" then
                                 if pool.weight < 0 then
-                                    LogWarn("\"rewards_per_difficulty[" .. tostring(diff) .. "][" .. tostring(i) .. "].weight\" is less than 0. This may lead to unintended results.")
+                                    LogWarn("\"rewards_per_difficulty[" ..
+                                    tostring(diff) ..
+                                    "][" ..
+                                    tostring(i) .. "].weight\" is less than 0. This may lead to unintended results.")
                                 end
                             else
-                                LogError("\"rewards_per_difficulty[" .. tostring(diff) .. "][" .. tostring(i) .. "].weight\" is not number or nil. This may cause the library to fail.")
+                                LogError("\"rewards_per_difficulty[" ..
+                                tostring(diff) ..
+                                "][" ..
+                                tostring(i) .. "].weight\" is not number or nil. This may cause the library to fail.")
                             end
                         end
                     else
-                        LogError("\"difficulty_to_tier[" .. tostring(diff) .. "][" .. tostring(i) .. "]\" is not a table. This may cause the library to fail.")
+                        LogError("\"difficulty_to_tier[" ..
+                        tostring(diff) ..
+                        "][" .. tostring(i) .. "]\" is not a table. This may cause the library to fail.")
                     end
                 end
             else
-                LogError("Difficulty id\"" .. tostring(diff) .. "\" has no reward pools assigned to it inside \"difficulty_to_tier\". This may cause the library to fail.")
+                LogError("Difficulty id\"" ..
+                tostring(diff) ..
+                "\" has no reward pools assigned to it inside \"difficulty_to_tier\". This may cause the library to fail.")
             end
         end
     else
@@ -508,18 +647,25 @@ function checker.check(library)
                 LogWarn("Pokemon pool with id \"" .. tostring(id) .. "\" is unused.")
             end
             if type(id) ~= "string" then
-                LogWarn("\"pokemon\" contains an id of type \"" .. type(id) .. "\". All pokemon pool ids should be strings.")
+                LogWarn("\"pokemon\" contains an id of type \"" ..
+                type(id) .. "\". All pokemon pool ids should be strings.")
             end
             if type(pool) == "table" then
                 for i, entry in ipairs(pool) do
                     if type(entry) == "string" then
                         if not _DATA.DataIndices[RogueEssence.Data.DataManager.DataType.Monster]:ContainsKey(entry) then
-                            LogError("Value \"" .. tostring(entry) .. "\" in \"pokemon[" .. tostring(id) .. "][" .. tostring(i) .. "]\" is not a valid species id. This may cause the library to fail.")
+                            LogError("Value \"" ..
+                            tostring(entry) ..
+                            "\" in \"pokemon[" ..
+                            tostring(id) ..
+                            "][" .. tostring(i) .. "]\" is not a valid species id. This may cause the library to fail.")
                         end
                     elseif type(entry) == "table" then
                         checker.checkMonsterIDTable(entry, "pokemon[" .. tostring(id) .. "][" .. tostring(i) .. "]")
                     else
-                        LogError("\"pokemon[" .. tostring(id) .. "][" .. tostring(i) .. "]\" is not string or table. This may cause the library to fail.")
+                        LogError("\"pokemon[" ..
+                        tostring(id) ..
+                        "][" .. tostring(i) .. "]\" is not string or table. This may cause the library to fail.")
                     end
                 end
             else
@@ -546,21 +692,26 @@ function checker.check(library)
         if type(settings.law_enforcement.AGENT) == "table" then
             for i, agent in ipairs(settings.law_enforcement.AGENT) do
                 if type(agent) == "table" then
-                    checker.checkMonsterIDTable(agent --[[@as monsterIDTable]], "law_enforcement.AGENT[" .. tostring(i) .. "]")
-                    if not EqualToAny(type(agent.Unique), {"boolean", "nil"}) then
-                        LogWarn("\"law_enforcement.AGENT[" .. tostring(i) .. "].Unique\" is not boolean or nil. This may lead to unintended results.")
+                    checker.checkMonsterIDTable(agent --[[@as monsterIDTable]],
+                        "law_enforcement.AGENT[" .. tostring(i) .. "]")
+                    if not EqualToAny(type(agent.Unique), { "boolean", "nil" }) then
+                        LogWarn("\"law_enforcement.AGENT[" ..
+                        tostring(i) .. "].Unique\" is not boolean or nil. This may lead to unintended results.")
                     end
                     if agent.Weight then
                         if type(agent.Weight) == "number" then
-                            if agent.Weight<0 then
-                                LogWarn("\"law_enforcement.AGENT[" .. tostring(i) .. "].Weight\" is less than 0. This may lead to unintended results.")
+                            if agent.Weight < 0 then
+                                LogWarn("\"law_enforcement.AGENT[" ..
+                                tostring(i) .. "].Weight\" is less than 0. This may lead to unintended results.")
                             end
                         else
-                            LogError("\"law_enforcement.AGENT[" .. tostring(i) .. "].Weight\" is not number or nil. This may cause the library to fail.")
+                            LogError("\"law_enforcement.AGENT[" ..
+                            tostring(i) .. "].Weight\" is not number or nil. This may cause the library to fail.")
                         end
                     end
                 else
-                    LogError("\"law_enforcement.AGENT[" .. tostring(i) .. "]\" is not a table. This may cause the library to fail.")
+                    LogError("\"law_enforcement.AGENT[" ..
+                    tostring(i) .. "]\" is not a table. This may cause the library to fail.")
                 end
             end
         else
@@ -581,40 +732,56 @@ function checker.check(library)
                 LogWarn("Enforcer chance pool with id \"" .. tostring(id) .. "\" is unused.")
             end
             if type(id) ~= "string" then
-                LogWarn("\"enforcer_chance\" contains an id of type \"" .. type(id) .. "\". All enforcer chance pool ids should be strings.")
+                LogWarn("\"enforcer_chance\" contains an id of type \"" ..
+                type(id) .. "\". All enforcer chance pool ids should be strings.")
             end
             if type(pool) == "table" then
                 for i, entry in ipairs(pool) do
                     if type(entry) == "table" then
-                        if not EqualToAny(entry.id, {"OFFICER", "AGENT"}) then
-                            LogError("\"enforcer_chance[" .. tostring(id) .. "][" .. tostring(i) .. "].id\" is not \"OFFICER\" or \"AGENT\". This may cause the library to fail.")
+                        if not EqualToAny(entry.id, { "OFFICER", "AGENT" }) then
+                            LogError("\"enforcer_chance[" ..
+                            tostring(id) ..
+                            "][" ..
+                            tostring(i) .. "].id\" is not \"OFFICER\" or \"AGENT\". This may cause the library to fail.")
                         end
                         if entry.index and entry.id == "AGENT" then
                             if type(entry.index) == "number" then
                                 if entry.index <= 0 then
-                                    LogError("\"enforcer_chance[" .. tostring(id) .. "][" .. tostring(i) .. "].index\" cannot be 0 or negative.")
+                                    LogError("\"enforcer_chance[" ..
+                                    tostring(id) .. "][" .. tostring(i) .. "].index\" cannot be 0 or negative.")
                                 elseif settings.law_enforcement and settings.law_enforcement.AGENT and entry.index > #settings.law_enforcement.AGENT then
-                                    LogError("\"enforcer_chance[" .. tostring(id) .. "][" .. tostring(i) .. "].index\" is higher than the number of defined agents in \"law_enforcement[AGENT]\". This may cause the library to fail.")
+                                    LogError("\"enforcer_chance[" ..
+                                    tostring(id) ..
+                                    "][" ..
+                                    tostring(i) ..
+                                    "].index\" is higher than the number of defined agents in \"law_enforcement[AGENT]\". This may cause the library to fail.")
                                 end
                             else
-                                LogError("\"pokemon[" .. tostring(id) .. "][" .. tostring(i) .. "].index\" is not number or nil. This may cause the library to fail.")
+                                LogError("\"pokemon[" ..
+                                tostring(id) ..
+                                "][" ..
+                                tostring(i) .. "].index\" is not number or nil. This may cause the library to fail.")
                             end
                         end
                         if entry.weight then
                             if type(entry.weight) == "number" then
-                                if entry.weight<0 then
-                                    LogWarn("\"reward_types[" .. tostring(i) .. "].weight\" is less than 0. This may lead to unintended results.")
+                                if entry.weight < 0 then
+                                    LogWarn("\"reward_types[" ..
+                                    tostring(i) .. "].weight\" is less than 0. This may lead to unintended results.")
                                 end
                             else
-                                LogError("\"reward_types[" .. tostring(i) .. "].weight\" is not number or nil. This may cause the library to fail.")
+                                LogError("\"reward_types[" ..
+                                tostring(i) .. "].weight\" is not number or nil. This may cause the library to fail.")
                             end
                         end
                     else
-                        LogError("\"enforcer_chance[" .. tostring(id) .. "][" .. tostring(i) .. "]\" is not a table. This may cause the library to fail.")
+                        LogError("\"enforcer_chance[" ..
+                        tostring(id) .. "][" .. tostring(i) .. "]\" is not a table. This may cause the library to fail.")
                     end
                 end
             else
-                LogError("\"enforcer_chance[" .. tostring(id) .. "]\" is not a table. This may cause the library to fail.")
+                LogError("\"enforcer_chance[" ..
+                tostring(id) .. "]\" is not a table. This may cause the library to fail.")
             end
         end
     else
@@ -648,72 +815,143 @@ function checker.check(library)
                                 values.data_tiers[t].special_data[spec] = values.data_tiers[t].special_data[spec] or {}
                                 values.data_tiers[t].special_data[spec] = true
                             else
-                                LogWarn("Special data tier with id \"" .. tostring(t) .. "\" defined inside pool \"" .. tostring(spec) .. "\" is unused.")
+                                LogWarn("Special data tier with id \"" ..
+                                tostring(t) .. "\" defined inside pool \"" .. tostring(spec) .. "\" is unused.")
                             end
                             if type(list) == "table" then
                                 for i, entry in ipairs(list) do
                                     if type(entry.client) == "table" then
-                                        checker.checkMonsterIDTable(entry.client --[[@as monsterIDTable]], "special_data[" .. tostring(spec) .. "][" .. tostring(t) .. "][" .. tostring(i) .. "].client")
+                                        checker.checkMonsterIDTable(entry.client --[[@as monsterIDTable]],
+                                            "special_data[" ..
+                                            tostring(spec) .. "][" .. tostring(t) .. "][" .. tostring(i) .. "].client")
                                     elseif type(entry.client) == "string" then
                                         if entry.client ~= "ENFORCER" and entry.client ~= "OFFICER" and entry.client ~= "AGENT" then
-                                            LogError("\"special_data[" .. tostring(spec) .. "][" .. tostring(t) .. "][" .. tostring(i) .. "].client\" is set to an invalid keyword. This may cause the library to fail.\n"..
-                                            "Valid keywords are: \"ENFORCER\",\"OFFICER\",\"AGENT\".")
+                                            LogError("\"special_data[" ..
+                                                tostring(spec) ..
+                                                "][" ..
+                                                tostring(t) ..
+                                                "][" ..
+                                                tostring(i) ..
+                                                "].client\" is set to an invalid keyword. This may cause the library to fail.\n" ..
+                                                "Valid keywords are: \"ENFORCER\",\"OFFICER\",\"AGENT\".")
                                         end
                                     else
-                                        LogError("\"special_data[" .. tostring(spec) .. "][" .. tostring(t) .. "][" .. tostring(i) .. "].client\" is not table or string. This may cause the library to fail.")
+                                        LogError("\"special_data[" ..
+                                        tostring(spec) ..
+                                        "][" ..
+                                        tostring(t) ..
+                                        "][" ..
+                                        tostring(i) ..
+                                        "].client\" is not table or string. This may cause the library to fail.")
                                     end
                                     if type(entry.target) == "table" then
-                                        checker.checkMonsterIDTable(entry.target --[[@as monsterIDTable]], "special_data[" .. tostring(spec) .. "][" .. tostring(t) .. "][" .. tostring(i) .. "].target")
+                                        checker.checkMonsterIDTable(entry.target --[[@as monsterIDTable]],
+                                            "special_data[" ..
+                                            tostring(spec) .. "][" .. tostring(t) .. "][" .. tostring(i) .. "].target")
                                     elseif type(entry.target) == "string" then
                                         if entry.target ~= "ENFORCER" and entry.target ~= "OFFICER" and entry.target ~= "AGENT" then
-                                            LogError("\"special_data[" .. tostring(spec) .. "][" .. tostring(t) .. "][" .. tostring(i) .. "].target\" is set to an invalid keyword. This may cause the library to fail.\n"..
-                                            "Valid keywords are: \"ENFORCER\",\"OFFICER\",\"AGENT\".")
+                                            LogError("\"special_data[" ..
+                                                tostring(spec) ..
+                                                "][" ..
+                                                tostring(t) ..
+                                                "][" ..
+                                                tostring(i) ..
+                                                "].target\" is set to an invalid keyword. This may cause the library to fail.\n" ..
+                                                "Valid keywords are: \"ENFORCER\",\"OFFICER\",\"AGENT\".")
                                         end
                                     else
-                                        LogError("\"special_data[" .. tostring(spec) .. "][" .. tostring(t) .. "][" .. tostring(i) .. "].target\" is not table or string. This may cause the library to fail.")
+                                        LogError("\"special_data[" ..
+                                        tostring(spec) ..
+                                        "][" ..
+                                        tostring(t) ..
+                                        "][" ..
+                                        tostring(i) ..
+                                        "].target\" is not table or string. This may cause the library to fail.")
                                     end
                                     if entry.item then
                                         if type(entry.item) == string then
                                             if _DATA.DataIndices[RogueEssence.Data.DataManager.DataType.Item]:ContainsKey(entry.item) then
-                                                local item_summary = _DATA.DataIndices[RogueEssence.Data.DataManager.DataType.Item]:Get(entry.item)
+                                                local item_summary = _DATA.DataIndices
+                                                [RogueEssence.Data.DataManager.DataType.Item]:Get(entry.item)
                                                 if item_summary.MaxStack > 1 then
-                                                    LogWarn("Item \"" .. tostring(entry.item) .. "\" in \"special_data[" .. tostring(spec) .. "][" .. tostring(t) .. "][" .. tostring(i) .. "].item\" is stackable. This may lead to unintended results.")
+                                                    LogWarn("Item \"" ..
+                                                    tostring(entry.item) ..
+                                                    "\" in \"special_data[" ..
+                                                    tostring(spec) ..
+                                                    "][" ..
+                                                    tostring(t) ..
+                                                    "][" ..
+                                                    tostring(i) ..
+                                                    "].item\" is stackable. This may lead to unintended results.")
                                                 end
                                             else
-                                                LogError("Entry id \"" .. tostring(entry.item) .. "\" in \"special_data[" .. tostring(spec) .. "][" .. tostring(t) .. "][" .. tostring(i) .. "].item\" does not correspond to an item. This may cause the library to fail.")
+                                                LogError("Entry id \"" ..
+                                                tostring(entry.item) ..
+                                                "\" in \"special_data[" ..
+                                                tostring(spec) ..
+                                                "][" ..
+                                                tostring(t) ..
+                                                "][" ..
+                                                tostring(i) ..
+                                                "].item\" does not correspond to an item. This may cause the library to fail.")
                                             end
                                         else
-                                            LogError("\"special_data[" .. tostring(spec) .. "][" .. tostring(t) .. "][" .. tostring(i) .. "].target\" is not a string. This may cause the library to fail.")
+                                            LogError("\"special_data[" ..
+                                            tostring(spec) ..
+                                            "][" ..
+                                            tostring(t) ..
+                                            "][" ..
+                                            tostring(i) ..
+                                            "].target\" is not a string. This may cause the library to fail.")
                                         end
                                     end
                                     if type(entry.flavor) == "string" then
                                         if not RogueEssence.Text.Strings:ContainsKey(entry.flavor) then
-                                            LogWarn("\"special_data[" .. tostring(spec) .. "][" .. tostring(t) .. "][" .. tostring(i) .. "].flavor\" is not a valid strings.resx key. This will cause errors when opening menus.")
+                                            LogWarn("\"special_data[" ..
+                                            tostring(spec) ..
+                                            "][" ..
+                                            tostring(t) ..
+                                            "][" ..
+                                            tostring(i) ..
+                                            "].flavor\" is not a valid strings.resx key. This will cause errors when opening menus.")
                                         end
                                     else
-                                        LogError("\"special_data[" .. tostring(spec) .. "][" .. tostring(t) .. "][" .. tostring(i) .. "].flavor\" is not a string. This may cause the library to fail.")
+                                        LogError("\"special_data[" ..
+                                        tostring(spec) ..
+                                        "][" ..
+                                        tostring(t) ..
+                                        "][" ..
+                                        tostring(i) .. "].flavor\" is not a string. This may cause the library to fail.")
                                     end
                                 end
                             else
                                 if values.special then
-                                    LogError("\"special_data[" .. tostring(spec) .. "][" .. tostring(t) .. "]\" is not a table. This may cause the library to fail.")
+                                    LogError("\"special_data[" ..
+                                    tostring(spec) ..
+                                    "][" .. tostring(t) .. "]\" is not a table. This may cause the library to fail.")
                                 else
-                                    LogWarn("\"special_data[" .. tostring(spec) .. "][" .. tostring(t) .. "]\" is not a table.")
+                                    LogWarn("\"special_data[" ..
+                                    tostring(spec) .. "][" .. tostring(t) .. "]\" is not a table.")
                                 end
                             end
                         else
-                            LogWarn("\"special_data[" .. tostring(spec) .. "]\" contains an id of type \"" .. type(t) .. "\". All special data tier ids should be strings.")
+                            LogWarn("\"special_data[" ..
+                            tostring(spec) ..
+                            "]\" contains an id of type \"" ..
+                            type(t) .. "\". All special data tier ids should be strings.")
                         end
                     end
                 else
                     if values.special then
-                        LogError("\"special_data[" .. tostring(spec) .. "]\" is not a table. This may cause the library to fail.")
+                        LogError("\"special_data[" ..
+                        tostring(spec) .. "]\" is not a table. This may cause the library to fail.")
                     else
                         LogWarn("\"special_data[" .. tostring(spec) .. "]\" is not a table.")
                     end
                 end
             else
-                LogWarn("\"special_data\" contains an id of type \"" .. type(spec) .. "\". All special data pool ids should be strings.")
+                LogWarn("\"special_data\" contains an id of type \"" ..
+                type(spec) .. "\". All special data pool ids should be strings.")
             end
         end
     else
@@ -726,17 +964,22 @@ function checker.check(library)
     for spec, defined in pairs(values.special_types) do
         if not defined then
             if values.special then
-                LogError("Special type \"" .. tostring(spec) .. "\" is not defined in \"special_data\". This may cause the library to fail")
+                LogError("Special type \"" ..
+                tostring(spec) .. "\" is not defined in \"special_data\". This may cause the library to fail")
             else
                 LogWarn("Special type \"" .. tostring(spec) .. "\" is not defined in \"special_data\".")
             end
             for t, tbl in pairs(values.data_tiers) do
                 if tbl.special_data then
                     if not tbl.special_data[spec] then
-                        LogWarn("Special data pool of tier \"" .. tostring(t) .. "\" does not contain a list for special type \"" .. tostring(spec) .. "\". This may cause the library to fail")
+                        LogWarn("Special data pool of tier \"" ..
+                        tostring(t) ..
+                        "\" does not contain a list for special type \"" ..
+                        tostring(spec) .. "\". This may cause the library to fail")
                     end
                 else
-                    LogWarn("Special data pool of tier \"" .. tostring(t) .. "\" does not contain any entries. This may cause the library to fail")
+                    LogWarn("Special data pool of tier \"" ..
+                    tostring(t) .. "\" does not contain any entries. This may cause the library to fail")
                 end
             end
         end
@@ -751,10 +994,16 @@ function checker.check(library)
                     for i, entry in ipairs(list) do
                         if type(entry) == "string" then
                             if not RogueEssence.Text.Strings:ContainsKey(entry) then
-                                LogWarn("\"job_titles[" .. tostring(t) .. "][" .. tostring(i) .. "]\" is not a valid strings.resx key. This will cause errors when opening menus.")
+                                LogWarn("\"job_titles[" ..
+                                tostring(t) ..
+                                "][" ..
+                                tostring(i) ..
+                                "]\" is not a valid strings.resx key. This will cause errors when opening menus.")
                             end
                         else
-                            LogError("\"job_titles[" .. tostring(t) .. "][" .. tostring(i) .. "]\" is not a string. This may cause the library to fail.")
+                            LogError("\"job_titles[" ..
+                            tostring(t) ..
+                            "][" .. tostring(i) .. "]\" is not a string. This may cause the library to fail.")
                         end
                     end
                 else
@@ -771,15 +1020,20 @@ function checker.check(library)
     end
     for t in pairs(values.job_types) do
         if not settings.job_titles[t] then
-            LogError("Job type id\"" .. tostring(t) .. "\" has no job title pool assigned to it inside \"job_titles\". This may cause the library to fail.")
+            LogError("Job type id\"" ..
+            tostring(t) ..
+            "\" has no job title pool assigned to it inside \"job_titles\". This may cause the library to fail.")
         end
     end
     for t in pairs(values.special_types) do
         if not settings.job_titles[t] then
             if values.special then
-                LogError("Special type id\"" .. tostring(t) .. "\" has no job title pool assigned to it inside \"job_titles\". This may cause the library to fail.")
+                LogError("Special type id\"" ..
+                tostring(t) ..
+                "\" has no job title pool assigned to it inside \"job_titles\". This may cause the library to fail.")
             else
-                LogWarn("Special type id\"" .. tostring(t) .. "\" has no job title pool assigned to it inside \"job_titles\".")
+                LogWarn("Special type id\"" ..
+                tostring(t) .. "\" has no job title pool assigned to it inside \"job_titles\".")
             end
         end
     end
@@ -795,14 +1049,26 @@ function checker.check(library)
                             for s = 1, 2, 1 do
                                 if type(entry[s]) == "string" then
                                     if not RogueEssence.Text.Strings:ContainsKey(entry[s]) then
-                                        LogWarn("\"job_flavor[" .. tostring(t) .. "][" .. tostring(i) .. "][" .. tostring(s) .. "]\" is not a valid strings.resx key. This will cause errors when opening menus.")
+                                        LogWarn("\"job_flavor[" ..
+                                        tostring(t) ..
+                                        "][" ..
+                                        tostring(i) ..
+                                        "][" ..
+                                        tostring(s) ..
+                                        "]\" is not a valid strings.resx key. This will cause errors when opening menus.")
                                     end
                                 else
-                                    LogError("\"job_flavor[" .. tostring(t) .. "][" .. tostring(i) .. "][" .. tostring(s) .. "]\" is not a string. This may cause the library to fail.")
+                                    LogError("\"job_flavor[" ..
+                                    tostring(t) ..
+                                    "][" ..
+                                    tostring(i) ..
+                                    "][" .. tostring(s) .. "]\" is not a string. This may cause the library to fail.")
                                 end
                             end
                         else
-                            LogError("\"job_flavor[" .. tostring(t) .. "][" .. tostring(i) .. "]\" is not a table. This may cause the library to fail.")
+                            LogError("\"job_flavor[" ..
+                            tostring(t) ..
+                            "][" .. tostring(i) .. "]\" is not a table. This may cause the library to fail.")
                         end
                     end
                 else
@@ -819,7 +1085,9 @@ function checker.check(library)
     end
     for t in pairs(values.job_types) do
         if not settings.job_flavor[t] then
-            LogError("Job type id\"" .. tostring(t) .. "\" has no job flavor pool assigned to it inside \"job_flavor\". This may cause the library to fail.")
+            LogError("Job type id\"" ..
+            tostring(t) ..
+            "\" has no job flavor pool assigned to it inside \"job_flavor\". This may cause the library to fail.")
         end
     end
 
@@ -832,14 +1100,21 @@ function checker.check(library)
                     for i, entry in ipairs(list) do
                         if type(entry) == "string" then
                             if not RogueEssence.Text.StringsEx:ContainsKey(entry) then
-                                LogWarn("\"escort_talks[" .. tostring(t) .. "][" .. tostring(i) .. "]\" is not a valid stringsEx.resx key. This will cause errors when loading it as dialogue.")
+                                LogWarn("\"escort_talks[" ..
+                                tostring(t) ..
+                                "][" ..
+                                tostring(i) ..
+                                "]\" is not a valid stringsEx.resx key. This will cause errors when loading it as dialogue.")
                             end
                         else
-                            LogError("\"escort_talks[" .. tostring(t) .. "][" .. tostring(i) .. "]\" is not a string. This may cause the library to fail.")
+                            LogError("\"escort_talks[" ..
+                            tostring(t) ..
+                            "][" .. tostring(i) .. "]\" is not a string. This may cause the library to fail.")
                         end
                     end
                 else
-                    LogError("\"escort_talks[" .. tostring(t) .. "]\" is not a table. This will cause the library to fail.")
+                    LogError("\"escort_talks[" ..
+                    tostring(t) .. "]\" is not a table. This will cause the library to fail.")
                 end
             elseif library.globals.job_types[t] then
                 LogWarn("Unused job type id \"" .. tostring(t) .. "\" found inside \"escort_talks\".")
@@ -853,7 +1128,9 @@ function checker.check(library)
     for t in pairs(values.job_types) do
         if library.globals.job_types[t].has_guest then
             if not settings.escort_talks[t] then
-                LogError("Job type id\"" .. tostring(t) .. "\" has no escort dialogue pool assigned to it inside \"escort_talks\". This may cause the library to fail.")
+                LogError("Job type id\"" ..
+                tostring(t) ..
+                "\" has no escort dialogue pool assigned to it inside \"escort_talks\". This may cause the library to fail.")
             end
         end
     end
@@ -862,10 +1139,13 @@ function checker.check(library)
             for _, spec in ipairs(settings.special_jobs[t]) do
                 if values.special then
                     if not settings.escort_talks[spec] then
-                        LogError("Special type id \"" .. tostring(spec) .. "\" has no escort dialogue pool assigned to it inside \"escort_talks\". This may cause the library to fail.")
+                        LogError("Special type id \"" ..
+                        tostring(spec) ..
+                        "\" has no escort dialogue pool assigned to it inside \"escort_talks\". This may cause the library to fail.")
                     end
                 else
-                    LogWarn("Special type id \"" .. tostring(spec) .. "\" has no escort dialogue pool assigned to it inside \"escort_talks\".")
+                    LogWarn("Special type id \"" ..
+                    tostring(spec) .. "\" has no escort dialogue pool assigned to it inside \"escort_talks\".")
                 end
             end
         end
@@ -874,7 +1154,9 @@ function checker.check(library)
     if not settings.rescue_responses then
         LogError("\"rescue_responses\" is nil. This will cause the library to fail.")
     elseif type(settings.rescue_responses) == "table" then
-        local emotions = {"Normal", "Happy", "Pain", "Angry", "Worried", "Sad", "Crying", "Shouting", "Teary-Eyed", "Determined", "Joyous", "Inspired", "Surprised", "Dizzy", "Special0", "Special1", "Sigh", "Stunned", "Special2", "Special3"}
+        local emotions = { "Normal", "Happy", "Pain", "Angry", "Worried", "Sad", "Crying", "Shouting", "Teary-Eyed",
+            "Determined", "Joyous", "Inspired", "Surprised", "Dizzy", "Special0", "Special1", "Sigh", "Stunned",
+            "Special2", "Special3" }
         local emotions2 = {}
         for _, e in ipairs(emotions) do table.insert(emotions2, "\"" .. tostring(e) .. "\"") end
         for case, tbl in pairs(settings.rescue_responses) do
@@ -887,36 +1169,70 @@ function checker.check(library)
                                     if type(entry) == "table" then
                                         if type(entry.key) == "string" then
                                             if not RogueEssence.Text.StringsEx:ContainsKey(entry.key) then
-                                                LogWarn("\"rescue_responses[" .. tostring(case) .. "][" .. tostring(t) .. "][" .. tostring(i) .. "].key\" is not a valid stringsEx.resx key. This will cause errors when loading it as dialogue.")
+                                                LogWarn("\"rescue_responses[" ..
+                                                tostring(case) ..
+                                                "][" ..
+                                                tostring(t) ..
+                                                "][" ..
+                                                tostring(i) ..
+                                                "].key\" is not a valid stringsEx.resx key. This will cause errors when loading it as dialogue.")
                                             end
                                         else
-                                            LogError("\"rescue_responses[" .. tostring(case) .. "][" .. tostring(t) .. "][" .. tostring(i) .. "].key\" is not a string. This may cause the library to fail.")
+                                            LogError("\"rescue_responses[" ..
+                                            tostring(case) ..
+                                            "][" ..
+                                            tostring(t) ..
+                                            "][" ..
+                                            tostring(i) .. "].key\" is not a string. This may cause the library to fail.")
                                         end
                                         if entry.emotion then
                                             if type(entry.emotion) == "string" then
                                                 if not EqualToAny(entry.emotion, emotions) then
-                                                    LogError("\"rescue_responses[" .. tostring(case) .. "][" .. tostring(t) .. "][" .. tostring(i) .. "].emotion\" is neither nil nor a valid emotion id.\n"..
+                                                    LogError("\"rescue_responses[" ..
+                                                        tostring(case) ..
+                                                        "][" ..
+                                                        tostring(t) ..
+                                                        "][" ..
+                                                        tostring(i) ..
+                                                        "].emotion\" is neither nil nor a valid emotion id.\n" ..
                                                         "Valid keywords are: " .. STRINGS:CreateList(emotions2))
                                                 end
                                             else
-                                                LogError("\"rescue_responses[" .. tostring(case) .. "][" .. tostring(t) .. "][" .. tostring(i) .. "].emotion\" is not a string. This may cause the library to fail.")
+                                                LogError("\"rescue_responses[" ..
+                                                tostring(case) ..
+                                                "][" ..
+                                                tostring(t) ..
+                                                "][" ..
+                                                tostring(i) ..
+                                                "].emotion\" is not a string. This may cause the library to fail.")
                                             end
                                         end
                                     else
-                                        LogError("\"rescue_responses[" .. tostring(case) .. "][" .. tostring(t) .. "][" .. tostring(i) .. "]\" is not a table. This may cause the library to fail.")
+                                        LogError("\"rescue_responses[" ..
+                                        tostring(case) ..
+                                        "][" ..
+                                        tostring(t) ..
+                                        "][" .. tostring(i) .. "]\" is not a table. This may cause the library to fail.")
                                     end
                                 end
                             else
-                                LogError("\"rescue_responses[" .. tostring(case) .. "][" .. tostring(t) .. "]\" is not a table. This will cause the library to fail.")
+                                LogError("\"rescue_responses[" ..
+                                tostring(case) ..
+                                "][" .. tostring(t) .. "]\" is not a table. This will cause the library to fail.")
                             end
                         elseif type(t) == "string" then
-                            LogWarn("Unused special type id \"" .. tostring(t) .. "\" found inside \"rescue_responses[" .. tostring(case) .. "]\".")
+                            LogWarn("Unused special type id \"" ..
+                            tostring(t) .. "\" found inside \"rescue_responses[" .. tostring(case) .. "]\".")
                         else
-                            LogWarn("\"rescue_responses[" .. tostring(case) .. "]\" contains a special type id of type \"" .. type(t) .. "\". All special type ids should be strings.")
+                            LogWarn("\"rescue_responses[" ..
+                            tostring(case) ..
+                            "]\" contains a special type id of type \"" ..
+                            type(t) .. "\". All special type ids should be strings.")
                         end
                     end
                 else
-                    LogError("\"rescue_responses[" .. tostring(case) .. "]\" is not a table. This will cause the library to fail.")
+                    LogError("\"rescue_responses[" ..
+                    tostring(case) .. "]\" is not a table. This will cause the library to fail.")
                 end
             else
                 LogWarn("Invalid response case \"" .. tostring(case) .. "\" found inside \"rescue_responses\".")
@@ -934,30 +1250,39 @@ function checker.check(library)
                 if type(data) == "table" then
                     if type(data.display_key) == "string" then
                         if not RogueEssence.Text.Strings:ContainsKey(data.display_key) then
-                            LogWarn("\"difficulty_data[" .. tostring(diff) .. "].display_key\" is not a valid strings.resx key. This will cause errors when opening menus.")
+                            LogWarn("\"difficulty_data[" ..
+                            tostring(diff) ..
+                            "].display_key\" is not a valid strings.resx key. This will cause errors when opening menus.")
                         end
                     else
-                        LogError("\"difficulty_data[" .. tostring(diff) .. "].display_key\" is not a string. This may cause the library to fail.")
+                        LogError("\"difficulty_data[" ..
+                        tostring(diff) .. "].display_key\" is not a string. This may cause the library to fail.")
                     end
                     if type(data.money_reward) ~= "number" then
-                        LogError("\"difficulty_data[" .. tostring(diff) .. "].money_reward\" is not a number. This may cause the library to fail.")
+                        LogError("\"difficulty_data[" ..
+                        tostring(diff) .. "].money_reward\" is not a number. This may cause the library to fail.")
                     end
                     if type(data.extra_reward) ~= "number" then
-                        LogError("\"difficulty_data[" .. tostring(diff) .. "].extra_reward\" is not a number. This may cause the library to fail.")
+                        LogError("\"difficulty_data[" ..
+                        tostring(diff) .. "].extra_reward\" is not a number. This may cause the library to fail.")
                     end
                     if not EqualToAny(type(data.escort_level), { "number", "nil" }) then
-                        LogError("\"difficulty_data[" .. tostring(diff) .. "].escort_level\" is not number or nil. This may cause the library to fail.")
+                        LogError("\"difficulty_data[" ..
+                        tostring(diff) .. "].escort_level\" is not number or nil. This may cause the library to fail.")
                     end
                     if not EqualToAny(type(data.outlaw_level), { "number", "nil" }) then
-                        LogError("\"difficulty_data[" .. tostring(diff) .. "].outlaw_level\" is not number or nil. This may cause the library to fail.")
+                        LogError("\"difficulty_data[" ..
+                        tostring(diff) .. "].outlaw_level\" is not number or nil. This may cause the library to fail.")
                     end
                 else
-                    LogError("\"difficulty_data[" .. tostring(diff) .. "]\" is not a table. This will cause the library to fail.")
+                    LogError("\"difficulty_data[" ..
+                    tostring(diff) .. "]\" is not a table. This will cause the library to fail.")
                 end
             elseif type(diff) == "string" then
                 LogWarn("Unused difficulty id \"" .. tostring(diff) .. "\" found inside \"difficulty_data\".")
             else
-                LogWarn("\"difficulty_data\" contains a difficulty id of type \"" .. type(diff) .. "\". All difficulty ids should be strings.")
+                LogWarn("\"difficulty_data\" contains a difficulty id of type \"" ..
+                type(diff) .. "\". All difficulty ids should be strings.")
             end
         end
     else
@@ -965,7 +1290,8 @@ function checker.check(library)
     end
     for diff in pairs(values.difficulties) do
         if not settings.difficulty_data then
-            LogError("\"difficulty_data\" does not contain an entry for difficulty id \"" .. tostring(diff) .. "\". This will cause the library to fail.")
+            LogError("\"difficulty_data\" does not contain an entry for difficulty id \"" ..
+            tostring(diff) .. "\". This will cause the library to fail.")
         end
     end
 
@@ -986,15 +1312,19 @@ function checker.check(library)
             if type(data) == "table" then
                 if type(data.display_key) == "string" then
                     if not RogueEssence.Text.Strings:ContainsKey(data.display_key) then
-                        LogWarn("\"boards[" .. tostring(id) .. "].display_key\" is not a valid strings.resx key. This will cause errors when opening menus.")
+                        LogWarn("\"boards[" ..
+                        tostring(id) ..
+                        "].display_key\" is not a valid strings.resx key. This will cause errors when opening menus.")
                     end
                 else
-                    LogError("\"boards[" .. tostring(id) .. "].display_key\" is not a string. This may cause the library to fail.")
+                    LogError("\"boards[" ..
+                    tostring(id) .. "].display_key\" is not a string. This may cause the library to fail.")
                 end
                 if type(data.location) == "table" then
                     checker.checkGroundLocationTable(data.location, "boards[" .. tostring(id) .. "].location")
                 else
-                    LogError("\"boards[" .. tostring(id) .. "].location\" is not a table. This will cause the library to fail.")
+                    LogError("\"boards[" ..
+                    tostring(id) .. "].location\" is not a table. This will cause the library to fail.")
                 end
                 if not data.size then
                     LogError("\"boards[" .. tostring(id) .. "].size\" is nil. This will cause the library to fail.")
@@ -1003,32 +1333,46 @@ function checker.check(library)
                         LogWarn("\"boards[" .. tostring(id) .. "].size\" must be greater than 0.")
                     end
                 else
-                    LogError("\"boards[" .. tostring(id) .. "].size\" is not a number. This will cause the library to fail.")
+                    LogError("\"boards[" ..
+                    tostring(id) .. "].size\" is not a number. This will cause the library to fail.")
                 end
                 if type(data.job_types) == "table" then
                     for i, entry in ipairs(data.job_types) do
                         if type(entry) == "table" then
                             if not values.job_types[entry.id] then
-                                LogError("\"boards[" .. tostring(id) .. "].job_types[" .. tostring(i) .. "].id\" is not a valid job id. This may cause the library to fail.")
+                                LogError("\"boards[" ..
+                                tostring(id) ..
+                                "].job_types[" ..
+                                tostring(i) .. "].id\" is not a valid job id. This may cause the library to fail.")
                             end
                             if entry.weight then
                                 if type(entry.weight) == "number" then
-                                    if entry.weight<0 then
-                                        LogWarn("\"boards[" .. tostring(id) .. "].job_types[" .. tostring(i) .. "].weight\" is less than 0. This may lead to unintended results.")
+                                    if entry.weight < 0 then
+                                        LogWarn("\"boards[" ..
+                                        tostring(id) ..
+                                        "].job_types[" ..
+                                        tostring(i) .. "].weight\" is less than 0. This may lead to unintended results.")
                                     end
                                 else
-                                    LogError("\"boards[" .. tostring(id) .. "].job_types[" .. tostring(i) .. "].weight\" is not number or nil. This may cause the library to fail.")
+                                    LogError("\"boards[" ..
+                                    tostring(id) ..
+                                    "].job_types[" ..
+                                    tostring(i) .. "].weight\" is not number or nil. This may cause the library to fail.")
                                 end
                             end
                         else
-                            LogError("\"boards[" .. tostring(id) .. "].job_types[" .. tostring(i) .. "]\" is not a table. This will cause the library to fail.")
+                            LogError("\"boards[" ..
+                            tostring(id) ..
+                            "].job_types[" .. tostring(i) .. "]\" is not a table. This will cause the library to fail.")
                         end
                     end
                 else
-                    LogError("\"boards[" .. tostring(id) .. "].job_types\" is not a table. This will cause the library to fail.")
+                    LogError("\"boards[" ..
+                    tostring(id) .. "].job_types\" is not a table. This will cause the library to fail.")
                 end
                 if not EqualToAny(type(data.condition), { "function", "nil" }) then
-                    LogError("\"boards[" .. tostring(id) .. "].condition\" is not a function or nil. This may cause the library to fail.")
+                    LogError("\"boards[" ..
+                    tostring(id) .. "].condition\" is not a function or nil. This may cause the library to fail.")
                 end
             else
                 LogError("\"boards[" .. tostring(id) .. "]\" is not a table. This will cause the library to fail.")
@@ -1042,7 +1386,9 @@ function checker.check(library)
         LogWarn("\"extra_reward_type\" is nil. It will default to \"none\".")
     elseif type(settings.extra_reward_type) == "string" then
         if not EqualToAny(settings.extra_reward_type, { "exp", "rank", "none" }) then
-            LogWarn("Value " .. tostring(settings.extra_reward_type) .. " is not a valid \"extra_reward_type\" id. It will default to \"none\".\n"..
+            LogWarn("Value " ..
+                tostring(settings.extra_reward_type) ..
+                " is not a valid \"extra_reward_type\" id. It will default to \"none\".\n" ..
                 "Valid keywords are: \"exp\", \"rank\", \"none\"")
         end
     else
@@ -1050,9 +1396,11 @@ function checker.check(library)
     end
 
     if not settings.mission_callback_root then
-        LogWarn("\"hidden_floor_chance\" is nil. This will cause the library to fail if the callback functionality is used at any point.")
+        LogWarn(
+        "\"hidden_floor_chance\" is nil. This will cause the library to fail if the callback functionality is used at any point.")
     elseif type(settings.mission_callback_root) ~= "table" then
-        LogWarn("\"hidden_floor_chance\" is not a number. This will cause the library to fail if the callback functionality is used at any point.")
+        LogWarn(
+        "\"hidden_floor_chance\" is not a number. This will cause the library to fail if the callback functionality is used at any point.")
     end
 
     if not settings.end_dungeon_day_destination then
@@ -1121,7 +1469,9 @@ function checker.check(library)
         elseif type(priority_data) == "table" then
             for i, num in ipairs(priority_data) do
                 if type(num) ~= "number" then
-                     LogError("\"" .. tostring(priority_id) .. "[" .. tostring(i) .. "]\" is not a number. This will cause the library to fail.")
+                    LogError("\"" ..
+                    tostring(priority_id) ..
+                    "[" .. tostring(i) .. "]\" is not a number. This will cause the library to fail.")
                 end
             end
         elseif type(priority_data) ~= "number" then
@@ -1153,10 +1503,14 @@ function checker.check(library)
         for i, elem in ipairs(settings.fleeing_outlaw_restrictions) do
             if type(elem) == "string" then
                 if not _DATA.DataIndices[RogueEssence.Data.DataManager.DataType.Element]:ContainsKey(elem) then
-                    LogError("\"" .. tostring(settings.fleeing_outlaw_restrictions) .. "[" .. tostring(i) .. "]\" is not a valid element id and will therefore be ignored.")
+                    LogError("\"" ..
+                    tostring(settings.fleeing_outlaw_restrictions) ..
+                    "[" .. tostring(i) .. "]\" is not a valid element id and will therefore be ignored.")
                 end
             else
-                LogError("\"" .. tostring(settings.fleeing_outlaw_restrictions) .. "[" .. tostring(i) .. "]\" is not a string. This will cause the library to fail.")
+                LogError("\"" ..
+                tostring(settings.fleeing_outlaw_restrictions) ..
+                "[" .. tostring(i) .. "]\" is not a string. This will cause the library to fail.")
             end
         end
     else
@@ -1169,10 +1523,12 @@ function checker.check(library)
         --testing if the music file exists through lua seems extremely excruciating and probably not worth it. Might as well try to run it directly at this point
         local s = SOUND:GetCurrentSong()
         if not pcall(function()
-            SOUND:PlayBGM(settings.outlaw_music_name, false, 1)
-            SOUND:SetBGMVolume(0)
+                SOUND:PlayBGM(settings.outlaw_music_name, false, 1)
+                SOUND:SetBGMVolume(0)
             end) then
-            LogWarn("Value \"" .. tostring(settings.outlaw_music_name) .. "\" of \"outlaw_music_name\" is not a valid BGM name. This will cause errors when trying to play outlaw music.")
+            LogWarn("Value \"" ..
+            tostring(settings.outlaw_music_name) ..
+            "\" of \"outlaw_music_name\" is not a valid BGM name. This will cause errors when trying to play outlaw music.")
         end
         SOUND:PlayBGM(s, false, 1)
     else
@@ -1186,16 +1542,20 @@ function checker.check(library)
         for i, condition in ipairs(settings.external_events) do
             if type(condition) == "table" then
                 if type(condition.condition) ~= "function" then
-                    LogError("\"external_events[" .. tostring(i) .. "].condition\" is not a function. This will cause the library to fail.")
+                    LogError("\"external_events[" ..
+                    tostring(i) .. "].condition\" is not a function. This will cause the library to fail.")
                 end
-                if not EqualToAny(type(condition.icon), {"string", "nil"}) then
-                    LogError("\"external_events[" .. tostring(i) .. "].icon\" is not string or nil. This will cause the library to fail.")
+                if not EqualToAny(type(condition.icon), { "string", "nil" }) then
+                    LogError("\"external_events[" ..
+                    tostring(i) .. "].icon\" is not string or nil. This will cause the library to fail.")
                 end
                 if not EqualToAny(type(condition.message_key), { "string", "nil" }) then
-                    LogError("\"external_events[" .. tostring(i) .. "].message_key\" is not string or nil. This will cause the library to fail.")
+                    LogError("\"external_events[" ..
+                    tostring(i) .. "].message_key\" is not string or nil. This will cause the library to fail.")
                 end
-                if not EqualToAny(type(condition.message_args), {"function", "nil"}) then
-                    LogError("\"external_events[" .. tostring(i) .. "].message_args\" is not function or nil. This will cause the library to fail.")
+                if not EqualToAny(type(condition.message_args), { "function", "nil" }) then
+                    LogError("\"external_events[" ..
+                    tostring(i) .. "].message_args\" is not function or nil. This will cause the library to fail.")
                 end
             else
                 LogError("\"dungeon_list_pattern\" is not a table. This will cause the library to fail.")
@@ -1209,7 +1569,9 @@ function checker.check(library)
         LogWarn("\"external_events_icon_mode\" is nil. It will default to \"ALL\".")
     elseif type(settings.external_events_icon_mode) == "string" then
         if not EqualToAny(settings.external_events_icon_mode, { "FIRST", "ALL" }) then
-            LogWarn("Value " .. tostring(settings.external_events_icon_mode) .. " is not a valid \"external_events_icon_mode\" id. It will default to \"ALL\".\n"..
+            LogWarn("Value " ..
+                tostring(settings.external_events_icon_mode) ..
+                " is not a valid \"external_events_icon_mode\" id. It will default to \"ALL\".\n" ..
                 "Valid keywords are: \"FIRST\", \"ALL\"")
         end
     else

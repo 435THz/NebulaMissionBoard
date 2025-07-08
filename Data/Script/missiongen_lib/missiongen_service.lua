@@ -1,6 +1,20 @@
-﻿require 'nebula_mission_board.common'
-require 'origin.services.baseservice'
+﻿-- PMDO Mission Generation Library, by MistressNebula
+-- Service file
+-- ----------------------------------------------------------------------------------------- --
+-- This file contains the service routines required by the library, including loading the
+-- library itself.
+-- If you are looking for the main systems, please refer to missiongen_lib.lua
+-- ----------------------------------------------------------------------------------------- --
+-- This is the only file outside of missiongen_lib.lua that must be loaded by modders.
+-- More specifically, you should require this file from inside your mod's main.lua.
+-- ----------------------------------------------------------------------------------------- --
+-- Make sure to write in the variable below, as a string, the name of the global variable you loaded the
+-- missiongen_lib.lua file into:
+local library_name = "MissionGen"
 
+
+require 'nebula_mission_board.common'
+require 'origin.services.baseservice'
 
 local MissionTools = Class('MissionTools', BaseService)
 
@@ -18,7 +32,9 @@ end
       Called when a save is loaded or created for the first time.
 ---------------------------------------------------------------]]
 function MissionTools:OnSaveLoad()
-    MissionGen:load()
+    assert(self, 'MissionTools:OnSaveLoad() : self is null!')
+    assert(_G[library_name], 'MissionTools:OnSaveLoad() : '..library_name..' is null!')
+    _G[library_name]:load()
 end
 
 --[[---------------------------------------------------------------
@@ -29,8 +45,8 @@ function MissionTools:OnDungeonFloorEnd()
     assert(self, 'MissionTools:OnDungeonFloorEnd() : self is null!')
     local zone, segment = _ZONE.CurrentZoneID, _ZONE.CurrentMapID.Segment
     --Mark the current dungeon as visited
-    MissionGen.root.dungeon_progress[zone] = MissionGen.root.dungeon_progress[zone] or {}
-    MissionGen.root.dungeon_progress[zone][segment] = MissionGen.root.dungeon_progress[zone][segment] or false
+    _G[library_name].root.dungeon_progress[zone] = _G[library_name].root.dungeon_progress[zone] or {}
+    _G[library_name].root.dungeon_progress[zone][segment] = _G[library_name].root.dungeon_progress[zone][segment] or false
 end
 
 --[[---------------------------------------------------------------
@@ -49,13 +65,13 @@ function MissionTools:OnAddMenu(menu)
                 if index <0 then index = menu:GetChoiceIndexByLabel(labels.OTH_SETTINGS) end
                 -- fall back to either 1 or choices count if both fail
                 if index <0 then index = math.min(1, menu.Choices.Count) end
-                choices:Insert(index, RogueEssence.Menu.MenuTextChoice("OTH_MISSION", STRINGS:FormatKey(MissionGen.globals.keys.OPTION_OBJECTIVES_LIST), function () MissionGen:OpenObjectivesMenu() end))
+                choices:Insert(index, RogueEssence.Menu.MenuTextChoice("OTH_MISSION", STRINGS:FormatKey(_G[library_name].globals.keys.OPTION_OBJECTIVES_LIST), function () _G[library_name]:OpenObjectivesMenu() end))
                 menu:ImportChoices(choices)
             end
         else
             if menu.Label == labels.MAIN_MENU then
                 local choices = menu:ExportChoices()
-                local taken_count = #MissionGen.root.taken
+                local taken_count = #_G[library_name].root.taken
                 local job_list_color = Color.Red
                 if taken_count > 0 then job_list_color = Color.White end
                 -- put right before Others if present
@@ -64,7 +80,7 @@ function MissionTools:OnAddMenu(menu)
                 if index <0 then
                     index = math.min(1, menu.Choices.Count)
                 end
-                choices:Insert(index, RogueEssence.Menu.MenuTextChoice("MAIN_MISSION", STRINGS:FormatKey(MissionGen.globals.keys.OPTION_JOBLIST), function () MissionGen:OpenTakenMenuFromMain() end, taken_count > 0, job_list_color))
+                choices:Insert(index, RogueEssence.Menu.MenuTextChoice("MAIN_MISSION", STRINGS:FormatKey(_G[library_name].globals.keys.OPTION_JOBLIST), function () _G[library_name]:OpenTakenMenuFromMain() end, taken_count > 0, job_list_color))
                 menu:ImportChoices(choices)
             end
         end
