@@ -2122,7 +2122,6 @@ function library:PopulateBoard(board_id, dest_data)
                     else
                         min_difficulty = 0
                     end
-                    -- TODO add sanity check on rank values? maybe only active in dev mode? How do you even check if you're in dev mode again? Maybe the sanity check should be on dev mode load, on everything
                     min_difficulty = min_difficulty - (job_type_properties.rank_modifier or 0)
                     local add = true
                     if min_difficulty > difficulty then add = false end
@@ -2591,7 +2590,6 @@ function library:OpenTakenMenuFromMain()
     TASK:StartScriptLocalCoroutine(function()
         self:OpenTakenMenu(1)
     end)
-    --TODO UI:OpenMainMenu()
 end
 
 --- Runs the script responsible for displaying one specific job.
@@ -2972,6 +2970,7 @@ function library:EnterDungeonAddJobEscorts(zone_id, escort_jobs)
         local level = self.data.difficulty_data[diff].escort_level
         local dungeon_default = not level
         if dungeon_default then level = zone_summary.Level end
+        ---@cast level integer
         if self.data.guest_level_scaling then
             level = self.data.guest_level_scaling(level, dungeon_default, party_avg, party_hst, self.data)
         end
@@ -3206,6 +3205,7 @@ function library:AwardChar(job, char, talk)
         local level = self.data.difficulty_data[diff].escort_level
         local dungeon_default = not level
         if dungeon_default then level = zone_summary.Level end
+        ---@cast level integer
         if self.data.guest_level_scaling then
             level = self.data.guest_level_scaling(level, dungeon_default, party_avg, party_hst, self.data)
         end
@@ -3717,6 +3717,7 @@ function library:SpawnOutlaw(_, _, context, args)
             	orig_level = zone.Level
             end
         end
+        ---@cast orig_level integer
         local level = orig_level
         if self.data.outlaw_level_scaling then
             self.data.outlaw_level_scaling(orig_level, dungeon_default, party_avg, party_hst, self.data)
