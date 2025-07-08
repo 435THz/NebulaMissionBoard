@@ -210,8 +210,8 @@ library.globals = globals
 --- Loads the root of the main data structure, generating the specified nodes if necessary.
 function library:load()
     if _DIAG.DevMode then
-        local succ, checker = pcall(require, "missiongen_devcheck")
-        --TODO if succ then checker.check(self) end
+        local succ, checker = pcall(require, "missiongen_lib.missiongen_devcheck")
+        if succ then checker.check(self) end
     end
 
     local rootpath = self.data.sv_root_name
