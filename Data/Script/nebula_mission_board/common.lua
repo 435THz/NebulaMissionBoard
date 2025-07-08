@@ -26,8 +26,7 @@ function COMMON.ShowDestinationMenu(dungeon_entrances, ground_entrances, force_l
     -- check for unlock of dungeons
     for ii = 1, #dungeon_entrances, 1 do
         if GAME:DungeonUnlocked(dungeon_entrances[ii]) then
-            local zone_summary = _DATA.DataIndices[RogueEssence.Data.DataManager.DataType.Zone]:Get(
-                dungeon_entrances[ii])
+            local zone_summary = _DATA.DataIndices[RogueEssence.Data.DataManager.DataType.Zone]:Get(dungeon_entrances[ii])
             if zone_summary.Released then
                 local zone_name = ""
                 if _DATA.Save:GetDungeonUnlock(dungeon_entrances[ii]) ==
