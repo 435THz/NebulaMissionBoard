@@ -2585,10 +2585,12 @@ end
 
 --- Runs the callback script responsible for interacting with the taken list.
 --- This function starts a coroutine as a way to mantain callback behavior consistecy.
+--- When closing the taken menu, only the MainMenu will be reopened.
 function library:OpenTakenMenuFromMain()
 	_MENU:ClearMenus()
     TASK:StartScriptLocalCoroutine(function()
         self:OpenTakenMenu(1)
+        TASK:WaitTask(LUA_ENGINE:OnMenuButtonPressed())
     end)
 end
 
