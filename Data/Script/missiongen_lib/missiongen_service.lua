@@ -18,7 +18,7 @@ end
       Called when a save is loaded or created for the first time.
 ---------------------------------------------------------------]]
 function MissionTools:OnSaveLoad()
-	MissionGen:load()
+    MissionGen:load()
 end
 
 --[[---------------------------------------------------------------

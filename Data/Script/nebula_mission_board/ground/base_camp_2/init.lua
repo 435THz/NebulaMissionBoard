@@ -5,7 +5,7 @@ local base_camp_2_bulletin = {}
 
 local base_init = CURMAPSCR.Init
 function base_camp_2_bulletin.Init(map)
-  	base_init(map)
+    base_init(map)
 end
 
 local base_enter = CURMAPSCR.Enter
@@ -13,7 +13,7 @@ function base_camp_2_bulletin.Enter(map)
     DEBUG.EnableDbgCoro() --Enable debugging this coroutine
     GROUND:Unhide("Mission_Board")
     if MissionGen:HasCompletedMissions() then
-    	MissionGen:PlayJobsCompletedCutscene(base_camp_2_bulletin.Hand_In_Missions)
+        MissionGen:PlayJobsCompletedCutscene(base_camp_2_bulletin.Hand_In_Missions)
     end
 
   base_enter(map)

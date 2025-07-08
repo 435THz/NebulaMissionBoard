@@ -44,7 +44,7 @@ end
 --- @param start_choice? integer The 1-based index of the choice that will be selected when opening the menu. Defaults to 1.
 --- @return integer #the index of the chosen option, or -1 if the menu was exited without selecting anything.
 function BoardSelectionMenu.run(library, board_id, start_choice)
-	start_choice = start_choice or 1
+    start_choice = start_choice or 1
     local ret = -1
     local cb = function(choice)
         ret = choice
@@ -129,7 +129,7 @@ function BoardMenu:GenerateOptions()
             end
         end
         local location = zone_str
-		if not job.HideFloor then location = location.. " " .. STRINGS:Format(floor_pattern, tostring(job.Floor)) end
+        if not job.HideFloor then location = location.. " " .. STRINGS:Format(floor_pattern, tostring(job.Floor)) end
 
         local color = Color.White
         --color everything red if job is taken and this is a job board
@@ -198,7 +198,7 @@ function BoardMenu:SelectPage(num)
 end
 
 function BoardMenu:MoveCursor(index)
-	local max_page_entries = math.min(self.MAX_ENTRIES, #self.choices - (self.page-1) * self.MAX_ENTRIES)
+    local max_page_entries = math.min(self.MAX_ENTRIES, #self.choices - (self.page-1) * self.MAX_ENTRIES)
     self.cursor_pos = (index-1) % max_page_entries +1
     self.current = self.cursor_pos + (self.page-1) * self.MAX_ENTRIES
 
@@ -437,7 +437,7 @@ function DungeonJobList:GenerateEntries()
             end
         end
     end
-	table.sort(list, function (a, b) return a.floor_number < b.floor_number end)
+    table.sort(list, function (a, b) return a.floor_number < b.floor_number end)
     if #oth_segments_list>0 then
         table.sort(oth_segments_list)
         for _, segment in ipairs(oth_segments_list) do
@@ -459,7 +459,7 @@ function DungeonJobList:GenerateEntries()
                 table.insert(list, {icon = STRINGS:Format("\\uE10F"), floor = floor, message = message})
             end
         else
-        	local missing = "[color=#FF0000]???[color]"
+            local missing = "[color=#FF0000]???[color]"
             local conditions = self.library:GetExternalEvents(self.zone)
             for _, condition in ipairs(conditions) do
                 if condition.message_key then
@@ -504,17 +504,17 @@ function DungeonJobList:DrawMenu()
     --populate jobs that are in this dungeon
     local start  = (self.page-1) * self.MAX_ENTRIES + 1
     local finish = math.min(self.page * self.MAX_ENTRIES, #self.entries)
-	local icon_x, floor_x, msg_x = 16, 16, 16
+    local icon_x, floor_x, msg_x = 16, 16, 16
     for i = finish, start, -1 do
         local count = (i-1) % self.MAX_ENTRIES
         local entry = self.entries[i]
 
         if entry.icon then
-        	if icon_x == floor_x then floor_x, msg_x = floor_x + 12, msg_x + 12 end
+            if icon_x == floor_x then floor_x, msg_x = floor_x + 12, msg_x + 12 end
             self.menu.Elements:Add(RogueEssence.Menu.MenuText(entry.icon,    RogueElements.Loc(icon_x,  24 + 14 * count)))
         end
         if entry.floor then
-        	if floor_x == msg_x then msg_x = msg_x + 32 end
+            if floor_x == msg_x then msg_x = msg_x + 32 end
             self.menu.Elements:Add(RogueEssence.Menu.MenuText(entry.floor,   RogueElements.Loc(floor_x, 24 + 14 * count)))
         end
         if entry.message then

@@ -19,11 +19,11 @@ function SINGLE_CHAR_SCRIPT.MonsterHouseOutlawCheck(owner, ownerChar, context, a
 end
 
 function SINGLE_CHAR_SCRIPT.OutlawItemCheckItem(owner, ownerChar, context, args)
-	MissionGen:OutlawItemCheckItem(owner, ownerChar, context, args)
+    MissionGen:OutlawItemCheckItem(owner, ownerChar, context, args)
 end
 
 function SINGLE_CHAR_SCRIPT.OutlawItemCheck(owner, ownerChar, context, args)
-	MissionGen:OutlawItemCheck(owner, ownerChar, context, args)
+    MissionGen:OutlawItemCheck(owner, ownerChar, context, args)
 end
 
 function SINGLE_CHAR_SCRIPT.OutlawFleeStairsCheck(owner, ownerChar, context, args)
@@ -31,11 +31,11 @@ function SINGLE_CHAR_SCRIPT.OutlawFleeStairsCheck(owner, ownerChar, context, arg
 end
 
 function SINGLE_CHAR_SCRIPT.ExplorationReached(owner, ownerChar, context, args)
-	MissionGen:ExplorationReached(owner, ownerChar, context, args)
+    MissionGen:ExplorationReached(owner, ownerChar, context, args)
 end
 
 function SINGLE_CHAR_SCRIPT.MissionItemCheck(owner, ownerChar, context, args)
-	MissionGen:MissionItemCheck(owner, ownerChar, context, args)
+    MissionGen:MissionItemCheck(owner, ownerChar, context, args)
 end
 
 function SINGLE_CHAR_SCRIPT.MissionGuestCheck(owner, ownerChar, context, args)
@@ -43,5 +43,5 @@ function SINGLE_CHAR_SCRIPT.MissionGuestCheck(owner, ownerChar, context, args)
 end
 
 function SINGLE_CHAR_SCRIPT.MobilityEndTurn(owner, ownerChar, context, args)
-	MissionGen:MobilityEndTurn(owner, ownerChar, context, args)
+    MissionGen:MobilityEndTurn(owner, ownerChar, context, args)
 end
