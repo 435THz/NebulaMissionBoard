@@ -3069,13 +3069,15 @@ function library:ExitDungeonMissionCheckEx(result, _, zone, segment)
             job.Completion = globals.completion.NotCompleted
         end
     end
-    self:UpdateBoards()
 
     if MissionGen.root.mission_flags.MissionCompleted then
+        -- PlayJobsCompletedCutscene will update the boards after it's done
         resetAnims()
         COMMON.EndDungeonDay(result, self.data.end_dungeon_day_destination.zone, -1, self.data.end_dungeon_day_destination.map, 0)
         return true
     end
+    -- PlayJobsCompletedCutscene will not be triggered, so the boards will be updated here
+    self:UpdateBoards()
     return false
 end
 
