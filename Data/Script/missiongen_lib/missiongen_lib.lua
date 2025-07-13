@@ -2142,7 +2142,7 @@ function library:PopulateBoard(board_id, dest_data)
             if #possible_job_types <= 0 then
                 --weed out any floor where no jobs can spawn EVER because of the difficulty constraints.
                 for i, elem in ipairs(dest_data.allowed[zone]) do
-                    if self:DifficultyToNum(elem.difficulty) < difficulty then
+                    if self:DifficultyToNum(elem.difficulty) <= difficulty then
                         table.remove(dest_data.allowed[zone], i)
                     end
                 end
