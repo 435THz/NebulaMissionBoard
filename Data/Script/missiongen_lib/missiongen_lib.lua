@@ -586,9 +586,9 @@ local rescueReachedFlow = function(context, job)
         UI:SetSpeakerEmotion("Normal")
         local case = "_DEFAULT"
         if job.Special and library.data.rescue_responses.rescue_no[job.Special] then case = job.Special end
-        local caseTable = library:WeightedRandom(library.data.rescue_responses.rescue_yes[case]) --[[@as {key:string, emotion:emotionType|nil}]]
+        local caseTable = library:WeightedRandom(library.data.rescue_responses.rescue_no[case]) --[[@as {key:string, emotion:emotionType|nil}]]
         if caseTable.emotion then UI:SetSpeakerEmotion(caseTable.emotion) end
-        UI:WaitShowDialogue(caseTable.key)
+        UI:WaitShowDialogue(RogueEssence.StringKey(caseTable.key):ToLocal())
 
         --change map setting back to what it was
         _DUNGEON.ShowMap = map_setting

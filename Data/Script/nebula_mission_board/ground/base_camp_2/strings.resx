@@ -157,7 +157,7 @@
     <value>Thank you for finding my {0}!</value>
   </data>
   <data name="Mission_Response_Delivery_Item" xml:space="preserve">
-    <value>Thank you for delivering my {0} the me!</value>
+    <value>Thank you for delivering my {0} to me!</value>
   </data>
   <data name="Mission_Response_Escort" xml:space="preserve">
     <value>Thank you for escorting me to my friend!</value>
