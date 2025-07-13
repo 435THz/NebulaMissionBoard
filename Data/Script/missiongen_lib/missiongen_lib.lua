@@ -1,5 +1,5 @@
 -- PMDO Mission Generation Library, by MistressNebula
--- Settings file
+-- Main file
 -- ----------------------------------------------------------------------------------------- --
 -- This is the main library file containing all functions and callbacks.
 -- If you need to configure your data, please refer to missiongen_settings.lua
@@ -631,7 +631,7 @@ local deliveryReachedFlow = function(context, job, oldDir)
             TASK:WaitTask(_DUNGEON:ProcessBattleFX(context.Target, context.Target, _DATA.SendHomeFX))
             _DUNGEON:RemoveChar(context.Target)
             GAME:WaitFrames(50)
-        library:AskMissionWarpOut()
+            library:AskMissionWarpOut()
         else --they are sad if you dont give them the item
             --quickly hide the minimap for the 20 frame pause
             local map_setting = _DUNGEON.ShowMap
