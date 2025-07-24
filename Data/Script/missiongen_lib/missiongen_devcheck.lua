@@ -1411,10 +1411,8 @@ function checker.check(library)
         LogError("\"end_dungeon_day_destination\" is not a table. This will cause the library to fail.")
     end
 
-    if not settings.after_rewards_function then
-        LogError("\"after_rewards_function\" is nil. This will cause the library to fail.")
-    elseif type(settings.after_rewards_function) ~= "function" then
-        LogError("\"after_rewards_function\" is not a function. This will cause the library to fail.")
+    if not EqualToAny(type(settings.after_rewards_function), {"function", "nil"}) then
+        LogError("\"after_rewards_function\" is not function or nil. This will cause the library to fail.")
     end
 
     if not settings.taken_limit then
