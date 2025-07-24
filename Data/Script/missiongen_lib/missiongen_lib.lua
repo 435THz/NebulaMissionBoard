@@ -202,7 +202,7 @@ globals.keysEx.CUTSCENE_AWARD_RANK_UP = "MISSION_COMPLETED_CUTSCENE_AWARD_RANK_U
 library.globals = globals
 
 -- ----------------------------------------------------------------------------------------- --
--- #region DATA GENERATORS
+-- #region Data generator
 -- ----------------------------------------------------------------------------------------- --
 -- Here at the top for easy access and reference, so that it is possible for modders to
 -- understand how the data is structured.
@@ -341,7 +341,7 @@ local newEvent = function(job)
     }
 end
 -- ----------------------------------------------------------------------------------------- --
--- #region LOGGING
+-- #region Logging
 -- ----------------------------------------------------------------------------------------- --
 -- Functions that write to the output log
 
@@ -391,7 +391,7 @@ function library:printall(tabl)
 end
 
 -- ----------------------------------------------------------------------------------------- --
--- #region MISC
+-- #region Misc
 -- ----------------------------------------------------------------------------------------- --
 -- Miscellaneous helper functions only callable from within this file
 
@@ -1253,7 +1253,7 @@ local rewardCutscene = function(jobIndex, callback)
 end
 
 -- ----------------------------------------------------------------------------------------- --
--- #region GETTERS
+-- #region Getters
 -- ----------------------------------------------------------------------------------------- --
 -- Quickly get specific data regarding jobs or boards
 
@@ -1644,7 +1644,7 @@ function library:GetExternalEvents(zone)
 end
 
 -- ----------------------------------------------------------------------------------------- --
--- #region DATA CONVERTERS
+-- #region Data converters
 -- ----------------------------------------------------------------------------------------- --
 -- Functions that convert data between C# and lua representation
 
@@ -1734,7 +1734,7 @@ function library:NumToDifficulty(num)
 end
 
 -- ----------------------------------------------------------------------------------------- --
--- #region RANDOMIZATION
+-- #region Randomization
 -- ----------------------------------------------------------------------------------------- --
 -- Functions for randomization purposes
 
@@ -1841,9 +1841,9 @@ function library:WeightlessRandomExclude(list, exclude, replay_sensitive)
 end
 
 -- ----------------------------------------------------------------------------------------- --
--- #region API
+-- #region Library Hooks
 -- ----------------------------------------------------------------------------------------- --
--- Core library functions
+-- Core library functions, intended to be used in scripts
 
 --- Sorts the taken jobs list.
 function library:SortTaken()
