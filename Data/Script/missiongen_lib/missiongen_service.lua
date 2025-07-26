@@ -1,4 +1,4 @@
-﻿-- PMDO Mission Generation Library, by MistressNebula
+﻿-- PMDO Mission Generation Library v1.0, by MistressNebula
 -- Service file
 -- ----------------------------------------------------------------------------------------- --
 -- This file contains the service routines required by the library, including loading the
