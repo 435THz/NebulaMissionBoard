@@ -12,4 +12,7 @@ You will then need to hook all the library's necessary events to your mod. To do
 
 ### How to customize
 The missiongen_settings.lua file contains a table of settings that are used by the library to define its behavior. Every setting is documented individually,
-describing its format, what it is used for and what kind of data it requires. 
+describing its format, what it is used for and what kind of data it requires.
+
+If you need more info, please look at the [library's page](https://wiki.pmdo.pmdcollab.org/User:MistressNebula/Nebula's_Mission_Board_Mod) in PMDOWiki.
+Feel free to leave issues on GitHub if you want to request some more specific guides that are not listed in the linked page yet!
