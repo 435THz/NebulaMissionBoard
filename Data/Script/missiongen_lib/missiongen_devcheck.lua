@@ -123,6 +123,14 @@ function checker.check(library)
     local settings = library.data --require("missiongen_lib.missiongen_settings")
     LogInfo("Running sanity checker from missiongen_devcheck.lua")
 
+    if not settings then
+        LogError("The base \"settings\" struct is nil. This will cause the library to fail. Was the return statement in \"missiongen_settings.lua\" removed?")
+        return
+    elseif type(settings) ~= "table" then
+        LogError("The base \"settings\" struct is not a table. This will cause the library to fail. Was the return statement in \"missiongen_settings.lua\" tampered with?")
+        return
+    end
+
     --validate root name
     if not settings.sv_root_name then
         LogError("\"sv_root_name\" is nil. This will cause the library to fail.")
