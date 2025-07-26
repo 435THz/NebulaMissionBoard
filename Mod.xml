@@ -7,5 +7,11 @@
   <Version>1.0</Version>
   <GameVersion>0.8.8</GameVersion>
   <ModType>Mod</ModType>
-  <Relationships />
+  <Relationships>
+    <RelatedMod>
+      <UUID>55887EBE-E6E9-408B-A8DC-ADC9D6A5F67C</UUID>
+      <Namespace>enable_mission_board</Namespace>
+      <Relationship>Incompatible</Relationship>
+    </RelatedMod>
+  </Relationships>
 </Header>
