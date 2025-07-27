@@ -316,7 +316,7 @@ function JobMenu:initialize(library, board_id, job_index, callback)
     self.menu = RogueEssence.Menu.ScriptableSingleStripMenu(232, 138, 24, choices, 0, function() self:choose(-1) end)
 
     self.job_window = self:GenerateSummary()
-    self.menu.SummaryMenus:Add(self.job_window) --TODO self.menu.LowerSummaryMenus:Add(self.job_window)
+    self.menu.LowerSummaryMenus:Add(self.job_window)
 end
 
 --- Confirmation function that runs the stored callback and closes the menu.

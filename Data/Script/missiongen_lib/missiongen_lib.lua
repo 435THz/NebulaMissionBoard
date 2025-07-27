@@ -3570,12 +3570,9 @@ function library:GenerateJobInFloor(zoneContext, _, queue, _, _)
     if type(prio_boss) ~= "table" then prio_boss = {prio_boss} end
     if type(prio_gen)  ~= "table" then prio_gen  = {prio_gen}  end
     if type(prio_npc)  ~= "table" then prio_npc  = {prio_npc}  end
-    --TODO local priority_boss = RogueElements.Priority(LUA_ENGINE:MakeLuaArray(globals.ctypes.Integer, prio_boss))
-    --TODO local priority_gen  = RogueElements.Priority(LUA_ENGINE:MakeLuaArray(globals.ctypes.Integer, prio_gen))
-    --TODO local priority_npc  = RogueElements.Priority(LUA_ENGINE:MakeLuaArray(globals.ctypes.Integer, prio_npc))
-    local priority_boss = RogueElements.Priority(-11)
-    local priority_gen  = RogueElements.Priority(-6)
-    local priority_npc  = RogueElements.Priority(5, 2, 1)
+    local priority_boss = RogueElements.Priority(LUA_ENGINE:MakeLuaArray(globals.ctypes.Integer, prio_boss))
+    local priority_gen  = RogueElements.Priority(LUA_ENGINE:MakeLuaArray(globals.ctypes.Integer, prio_gen))
+    local priority_npc  = RogueElements.Priority(LUA_ENGINE:MakeLuaArray(globals.ctypes.Integer, prio_npc))
 
     if escortMissions then
         activeEffect.OnDeaths:Add(priority_gen, RogueEssence.Dungeon.SingleCharScriptEvent("EscortDeathCheck", '{}'))
