@@ -3010,7 +3010,7 @@ function library:EnterDungeonPrepareParty(zone_id)
             local char = GAME:GetPlayerPartyMember(i)
             GAME:RemovePlayerTeam(i)
             GAME:AddPlayerAssembly(char)
-            table.insert(removed_names, 1, _DATA.Save.ActiveTeam.Players[i]:GetDisplayName(true))
+            table.insert(removed_names, 1, char:GetDisplayName(true))
         end
     end
     if _DATA.Save.ActiveTeam.LeaderIndex >= RogueEssence.Dungeon.ExplorerTeam.MAX_TEAM_SLOTS then
