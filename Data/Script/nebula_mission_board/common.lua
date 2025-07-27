@@ -159,30 +159,3 @@ function COMMON.EnterDungeonMissionCheck(zoneId, segmentID)
     end
     MissionGen:PrintEscortAdd(added_names)
 end
-
-function COMMON.LibraryTest()
-    MissionGen:FlushBoards()
-    local floor = 1
-    local job = MissionGen:MakeNewJob("castaway_cave", 0, 4, "LOST_ITEM", { Species = "missingno", Nickname = "???" },
-        nil, "egg_mystery", "client", nil, "MISSION_TITLE_TEST", { "MISSION_BODY_TEST" }, true, "MISSION_OBJECTIVES_TEST")
-    ---@cast job jobTable
-    MissionGen:RegisterCallback(job, "JobActivate", "EventTest")
-    MissionGen:AddJobToTaken(job)
-    floor = floor + 1
-end
-
-function COMMON.EventTest(evt, _)
-    evt.cancel = true
-    ---@type jobTable
-    local job = evt.job
-    local index = MissionGen:FindJobInTaken(job)
-    _DATA.Save.DungeonUnlocks:Remove(job.Zone)
-    UI:ResetSpeaker()
-    UI:WaitShowDialogue(STRINGS:Format("This quest requires you to find the fabled {0}.",
-        _DATA:GetItem("egg_mystery"):GetIconName()))
-    UI:WaitShowDialogue(STRINGS:Format("This mysterious item is said to be found in the depths of {0}.",
-        MissionGen:GetSegmentName(job.Zone, 0)))
-    UI:WaitShowDialogue("This letter will now self-destruct in 3...[pause=60] 2...[pause=60] 1...[pause=60]")
-    COMMON.UnlockWithFanfare("castaway_cave")
-    MissionGen:RemoveTakenJob(index)
-end
