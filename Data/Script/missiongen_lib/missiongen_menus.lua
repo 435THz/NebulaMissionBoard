@@ -177,7 +177,7 @@ function BoardMenu:DrawBoardStatic()
     self.menu.Elements:Add(self.page_num)
     --Another divider, plus accepted counter
     self.menu.Elements:Add(RogueEssence.Menu.MenuDivider(RogueElements.Loc(8, self.menu.Bounds.Height - 24), self.menu.Bounds.Width - 8 * 2))
-    self.menu.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.library.globals.keys.JOB_ACCEPTED, #self.library.root.taken, self.library.data.taken_limit), RogueElements.Loc(96, self.menu.Bounds.Height - 20)))
+    self.menu.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.library.globals.keys.JOB_ACCEPTED, #self.library.root.taken, self.library:GetTakenSize()), RogueElements.Loc(96, self.menu.Bounds.Height - 20)))
     --Cursor
     self.cursor = RogueEssence.Menu.MenuCursor(self.menu)
     self.menu.Elements:Add(self.cursor)
@@ -340,7 +340,7 @@ function JobMenu:GenerateSummary()
 
     --Accepted element
     summary.Elements:Add(RogueEssence.Menu.MenuDivider(RogueElements.Loc(8, summary.Bounds.Height - 24), summary.Bounds.Width - 8 * 2))
-    summary.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.library.globals.keys.JOB_ACCEPTED, #self.library.root.taken, self.library.data.taken_limit), RogueElements.Loc(96, summary.Bounds.Height - 20)))
+    summary.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.library.globals.keys.JOB_ACCEPTED, #self.library.root.taken, self.library:GetTakenSize()), RogueElements.Loc(96, summary.Bounds.Height - 20)))
 
     summary.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.job.Flavor[1], target, dungeon, item), RogueElements.Loc(16, 24)))
     if self.job.Flavor[2] and self.job.Flavor[2] ~= "" then
