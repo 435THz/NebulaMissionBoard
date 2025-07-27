@@ -1266,7 +1266,7 @@ function library:BoardExists(board_id) return self.data.boards[board_id] ~= nil 
 --- @param board_id string the id of the board to check
 --- @return boolean|nil #true if there are 0 jobs inside the board, false otherwise. Returns nil if the board does not exist
 function library:IsBoardEmpty(board_id)
-    if self:BoardExists(board_id) then return #self:GetBoardCount(board_id) <= 0 end
+    if self:BoardExists(board_id) then return self:GetBoardCount(board_id) <= 0 end
     logWarn(globals.warn_types.ID, "Board table of id \"" .. board_id .. "\" does not exist. Cannot check fullness.")
 end
 
@@ -1274,7 +1274,7 @@ end
 --- @param board_id string the id of the board to check
 --- @return boolean|nil #true if there are no more free job slots inside the board, false otherwise. Returns nil if the board does not exist
 function library:IsBoardFull(board_id)
-    if self:BoardExists(board_id) then return #self:GetBoardCount(board_id) >= self:GetBoardSize(board_id) end
+    if self:BoardExists(board_id) then return self:GetBoardCount(board_id) >= self:GetBoardSize(board_id) end
     logWarn(globals.warn_types.ID, "Board table of id \"" .. board_id .. "\" does not exist. Cannot check fullness.")
 end
 
@@ -1326,7 +1326,7 @@ function library:GetTakenSize() return self.data.taken_limit end
 --- @param index integer? The index of the job to check. If omitted, defaults to job 1 of the board.
 --- @return boolean|nil #true if the job exists, false otherwise. Returns nil if the board does not exist
 function library:BoardJobExists(board_id, index)
-    if self:BoardExists(board_id) then return #self:GetBoardCount(board_id) >= (index or 1) end
+    if self:BoardExists(board_id) then return self:GetBoardCount(board_id) >= (index or 1) end
     logWarn(globals.warn_types.ID, "Board table of id \"" .. board_id .. "\" does not exist. Cannot check fullness.")
 end
 
@@ -2107,7 +2107,7 @@ function library:PopulateBoard(board_id, dest_data)
     if not dest_data then dest_data = self:CompileDestinationData() end
     local guest_count = self:GetDungeonsGuestCount()
 
-    while (#self:GetBoardCount(board_id) < self:GetBoardSize(board_id)) do
+    while (self:GetBoardCount(board_id) < self:GetBoardSize(board_id)) do
 
         -- choose destination
         if #dest_data.destinations <= 0 then break end
@@ -2654,7 +2654,7 @@ function library:ShowSingularJob(board_id, index)
         logError(globals.error_types.ID, "Board with id \"" .. board_id .. "\" does not exist. Cannot interact.")
         return false
     end
-    if #self:GetBoardCount(board_id) < index then
+    if self:GetBoardCount(board_id) < index then
         logError(globals.error_types.ID, "Board with id \"" .. board_id .. "\" does not contain " .. index .. " jobs.")
         return false
     end
@@ -2682,7 +2682,7 @@ function library:TakeJob(board_id, index)
         logError(globals.error_types.ID, "Board with id \"" .. board_id .. "\" does not exist. Cannot take.")
         return false
     end
-    if #self:GetBoardCount(board_id) < index then
+    if self:GetBoardCount(board_id) < index then
         logError(globals.error_types.ID, "Board with id \"" .. board_id .. "\" does not contain " .. index .. " jobs.")
         return false
     end
