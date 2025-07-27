@@ -32,7 +32,7 @@ local settings = {
     --- * <board_id>: you can use any string in place of this. It will be used to identify the board in scripts
     --- * display_key: the string key used when displaying the job menu for this board.  The localized strings are fetched from the Menu Text list (strings.resx)
     --- * size: the amount of quests this board can hold at a time
-    --- * location: a zone id, a map index and the board's X and Y coordinates. These coordinates will be used as the center point for the "client" area of the job completion cutscene. All of these maps must call library:PlayJobsCompletedCutscene before fade-in for the reward sequence to work correctly.
+    --- * location: a zone id and a map index. This data is where the player will be brought for the job completion cutscene. All of these maps must call library:PlayJobsCompletedCutscene before fade-in for the reward sequence to work correctly.
     --- * condition: Optional. A function called to determine if library:PopulateBoards() should fill out this board. It receives the library object as an argument and returns a boolean. If it returns true, the board is filled out. If it returns false, it is left empty. If this property is missing, this board will always be active.
     --- * job_types: a list of job types and their probability weight. Higher weight means more common.
     ---@type table<string, {display_key:string, size:integer, condition:fun(library:table):(boolean)|nil, location:{zone:string, map:integer}, job_types:{id:string, weight:integer}[]}>

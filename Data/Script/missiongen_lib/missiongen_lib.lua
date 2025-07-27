@@ -1314,7 +1314,7 @@ function library:IsTakenListEmpty() return #self.root.taken <= 0 end
 function library:IsTakenListFull() return #self.root.taken >= self:GetTakenSize() end
 
 --- Retrieves the number of jobs inside the taken list.
---- @return integer #The number of jobs taken. Returns nil if the board does not exist
+--- @return integer #The number of jobs taken
 function library:GetTakenCount() return #self.root.taken end
 
 --- Retrieves the maximum number of jobs that can be put inside the taken list.
@@ -1323,8 +1323,8 @@ function library:GetTakenSize() return self.data.taken_limit end
 
 --- Checks if the given board has a job in the requested slot.
 --- @param board_id string the id of the board to check
---- @param index integer|nil The index of the job to check. If omitted, defaults to job 1 of the board.
---- @return boolean #true if the job exists, false otherwise
+--- @param index integer? The index of the job to check. If omitted, defaults to job 1 of the board.
+--- @return boolean|nil #true if the job exists, false otherwise. Returns nil if the board does not exist
 function library:BoardJobExists(board_id, index)
     if self:BoardExists(board_id) then return #self:GetBoardCount(board_id) >= (index or 1) end
     logWarn(globals.warn_types.ID, "Board table of id \"" .. board_id .. "\" does not exist. Cannot check fullness.")
@@ -2542,9 +2542,10 @@ function library:MakeNewJob(zone, segment, floor, job_type, client, target, targ
     return newJob
 end
 
---- Adds a job to a specific board, updating its BackReference in the process. This function ignores board limits.
+--- Adds a job to a specific board, updating its BackReference in the process. This function ignores board limits, and fails if the board does not exists.
 --- @param board_id string a board's string id
 --- @param job jobTable the job to add to the board
+--- @return boolean #true if the job was added correctly, false otherwise
 function library:AddJobToBoard(board_id, job)
     if self:BoardExists(board_id) then
         self:SetBackReference(job, board_id)
@@ -2555,6 +2556,10 @@ function library:AddJobToBoard(board_id, job)
     return false
 end
 
+--- Sets a job's BackReference property to the given board id. Fails if the board does not exists.
+--- @param job jobTable the job to add a BackReference to
+--- @param board_id string the id of the board to link this job to
+--- @return boolean #true if the BackReference was added correctly, false otherwise
 function library:SetBackReference(job, board_id)
     if self:BoardExists(board_id) then
         job.BackReference = board_id
@@ -2641,7 +2646,7 @@ end
 --- Runs the script responsible for displaying one specific job.
 --- This function does not check if the job exists. Please call library:BoardJobExists before this.
 --- @param board_id string the id of the board to interact with
---- @param index integer|nil The index of the job to show. If omitted, defaults to job 1 of the board.
+--- @param index integer? The index of the job to show. If omitted, defaults to 1.
 --- @return boolean #true if the job was taken, false otherwise
 function library:ShowSingularJob(board_id, index)
     index = index or 1
@@ -2670,7 +2675,7 @@ end
 --- Marks the job as taken and adds a copy of it to the taken board.
 --- The copy will have its BackReference set to board_id.
 --- @param board_id string the id of the board the job is in
---- @param index integer The index of the job to take
+--- @param index integer? The index of the job to take. DFefaults to 1
 function library:TakeJob(board_id, index)
     index = index or 1
     if not self:BoardExists(board_id) then
