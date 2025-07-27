@@ -1261,61 +1261,71 @@ end
 --- @param board_id string the id of the board to check
 --- @return boolean|nil #true if there are 0 jobs inside the board, false otherwise. Returns nil if the board does not exist
 function library:IsBoardEmpty(board_id)
-    if self.data.boards[board_id] then return #self.root.boards[board_id]<=0 end
+    if self:BoardExists(board_id) then return #self:GetBoardCount(board_id) <= 0 end
+    logWarn(globals.warn_types.ID, "Board table of id \"" .. board_id .. "\" does not exist. Cannot check fullness.")
 end
 
 --- Checks if a board is full or not.
 --- @param board_id string the id of the board to check
 --- @return boolean|nil #true if there are no more free job slots inside the board, false otherwise. Returns nil if the board does not exist
 function library:IsBoardFull(board_id)
-    if self.data.boards[board_id] then return #self.root.boards[board_id]>=self.data.boards[board_id].size
-    else return end
+    if self:BoardExists(board_id) then return #self:GetBoardCount(board_id) >= self:GetBoardSize(board_id) end
+    logWarn(globals.warn_types.ID, "Board table of id \"" .. board_id .. "\" does not exist. Cannot check fullness.")
 end
 
 --- Retrieves the number of jobs inside a board.
 --- @param board_id string the id of the board to check
 --- @return integer|nil #The number of jobs in the board. Returns nil if the board does not exist
 function library:GetBoardCount(board_id)
-    if self.data.boards[board_id] then return #self.root.boards[board_id] end
+    if self:BoardExists(board_id) then return #self.root.boards[board_id] end
+    logWarn(globals.warn_types.ID, "Board table of id \"" .. board_id .. "\" does not exist. Cannot check fullness.")
+end
+function library:GetBoardSize(board_id)
+    if self:BoardExists(board_id) then return self.data.boards[board_id].size end
+    logWarn(globals.warn_types.ID, "Board table of id \"" .. board_id .. "\" does not exist. Cannot check size.")
 end
 
 --- Checks if a board is active by running its condition check. If a board has no check, it will be always active.
 --- @param board_id string the id of the board to check
 --- @return boolean|nil #true if the board's condition check passes, false otherwise. Returns nil if the board does not exist
 function library:IsBoardActive(board_id)
-    if self.data.boards[board_id] then
+    if self:BoardExists(board_id) then
         if self.data.boards[board_id].condition then return self.data.boards[board_id].condition(self)
         else return true end
-    else
-        return
     end
+    logWarn(globals.warn_types.ID, "Board table of id \"" .. board_id .. "\" does not exist. Cannot check state.")
 end
 
 --- Checks if the player's taken job list is empty or not.
 --- @return boolean #true if there are 0 jobs inside the taken list, false otherwise.
-function library:IsTakenListEmpty() return #self.root.taken<=0 end
+function library:IsTakenListEmpty() return #self.root.taken <= 0 end
 
 --- Checks if the player's taken job list is full or not.
 --- @return boolean #true if there are no more free job slots inside the taken list, false otherwise.
-function library:IsTakenListFull() return #self.root.taken>=self.data.taken_limit end
+function library:IsTakenListFull() return #self.root.taken >= self:GetTakenSize() end
 
 --- Retrieves the number of jobs inside the taken list.
 --- @return integer #The number of jobs taken. Returns nil if the board does not exist
 function library:GetTakenCount() return #self.root.taken end
+function library:GetTakenSize() return self.data.taken_limit end
 
 --- Checks if the given board has a job in the requested slot.
 --- @param board_id string the id of the board to check
 --- @param index integer|nil The index of the job to check. If omitted, defaults to job 1 of the board.
 --- @return boolean #true if the job exists, false otherwise
 function library:BoardJobExists(board_id, index)
-    return #self.root.boards[board_id] >= (index or 1)
+    if self:BoardExists(board_id) then return #self:GetBoardCount(board_id) >= (index or 1) end
+    logWarn(globals.warn_types.ID, "Board table of id \"" .. board_id .. "\" does not exist. Cannot check fullness.")
 end
 
 --- Returns a job from a slot in a specific board.
 --- @param board_id string the id of the board to check
 --- @param index integer|nil The index of the job to fetch.
 --- @return jobTable #the data table of the job at that position, or nil if there is no job there.
-function library:GetBoardJob(board_id, index) return self.root.boards[board_id][index] end
+function library:GetBoardJob(board_id, index)
+    if self:BoardExists(board_id) then return self.root.boards[board_id][index] end
+    logWarn(globals.warn_types.ID, "Board table of id \"" .. board_id .. "\" does not exist. Cannot get job.")
+end
 
 --- Returns a job from a slot in the taken list.
 --- @param index integer|nil The index of the job to fetch.
@@ -2524,14 +2534,32 @@ end
 --- @param board_id string a board's string id
 --- @param job jobTable the job to add to the board
 function library:AddJobToBoard(board_id, job)
-    job.BackReference = board_id
-    table.insert(self.root.boards[board_id], job)
+    if self:BoardExists(board_id) then
+        self:SetBackReference(job, board_id)
+        table.insert(self.root.boards[board_id], job)
+        return true
+    end
+    logError(globals.error_types.ID, "Board with id \"" .. board_id .. "\" does not exist. Cannot add jobs to it.")
+    return false
+end
+
+function library:SetBackReference(job, board_id)
+    if self:BoardExists(board_id) then
+        job.BackReference = board_id
+        return true
+    end
+    logError(globals.error_types.ID, "Board with id \"" .. board_id .. "\" does not exist. Cannot set BackReference.")
+    return false
 end
 
 --- Runs the script responsible for interacting with a quest board.
 --- It will first display a menu where players can choose to check either the board or the taken list.
 --- @param board_id string the id of the board to interact with
 function library:BoardInteract(board_id)
+    if not self:BoardExists(board_id) then
+        logError(globals.error_types.ID, "Board with id \"" .. board_id .. "\" does not exist. Cannot interact.")
+        return
+    end
     local choice = 1
     while choice > 0 do
         local job_selected = 1
@@ -2548,6 +2576,10 @@ end
 --- @param board_id string the id of the board to interact with
 --- @param default? integer the job that will be selected when first opening the menu. Defaults to 1.
 function library:OpenBoardMenu(board_id, default)
+    if not self:BoardExists(board_id) then
+        logError(globals.error_types.ID, "Board with id \"" .. board_id .. "\" does not exist. Cannot interact.")
+        return
+    end
     local job_selected = default or 1
     --exit board menu if the board is empty
     while not self:IsBoardEmpty(board_id) do
@@ -2566,7 +2598,7 @@ end
 --- Runs the script responsible for handling the taken list's BoardMenu.
 --- @param default? integer the job that will be selected when first opening the menu. Defaults to 1.
 function library:OpenTakenMenu(default)
-    local job_selected = default
+    local job_selected = default or 1
     --exit board menu if the taken list is empty
     while not self:IsTakenListEmpty() do
         job_selected = menus.Board.run(self, nil, job_selected)
@@ -2601,6 +2633,14 @@ end
 --- @return boolean #true if the job was taken, false otherwise
 function library:ShowSingularJob(board_id, index)
     index = index or 1
+    if not self:BoardExists(board_id) then
+        logError(globals.error_types.ID, "Board with id \"" .. board_id .. "\" does not exist. Cannot interact.")
+        return false
+    end
+    if #self:GetBoardCount(board_id) < index then
+        logError(globals.error_types.ID, "Board with id \"" .. board_id .. "\" does not contain " .. index .. " jobs.")
+        return false
+    end
     local action = menus.Job.run(self, board_id, index)
     if action == 1 then
         self:TakeJob(board_id, index)
@@ -2620,6 +2660,15 @@ end
 --- @param board_id string the id of the board the job is in
 --- @param index integer The index of the job to take
 function library:TakeJob(board_id, index)
+    index = index or 1
+    if not self:BoardExists(board_id) then
+        logError(globals.error_types.ID, "Board with id \"" .. board_id .. "\" does not exist. Cannot take.")
+        return false
+    end
+    if #self:GetBoardCount(board_id) < index then
+        logError(globals.error_types.ID, "Board with id \"" .. board_id .. "\" does not contain " .. index .. " jobs.")
+        return false
+    end
     local job = self.root.boards[board_id][index]
     local taken = shallowCopy(job)
     local evt = callEvent(taken, "JobTake")
@@ -2644,6 +2693,10 @@ end
 --- The original job, if it still exists, will be marked as not Taken.
 --- @param index integer The index of the job to delete
 function library:RemoveTakenJob(index)
+    if #self.root.taken < index then
+        logError(globals.error_types.ID, "Taken list does not contain " .. index .. " jobs. Cannot remove.")
+        return false
+    end
     local job = self.root.taken[index]
     local bRefIndex = self:FindJobInBoard(job, job.BackReference)
     if bRefIndex > 0 then
@@ -2656,6 +2709,10 @@ end
 --- Changes a taken job's active status. This function can trigger the ``JobDeactivate`` and``JobActivate`` events depending on the job's state.
 --- @param index integer The index of the job to toggle
 function library:ToggleTakenJob(index)
+    if #self.root.taken < index then
+        logError(globals.error_types.ID, "Taken list does not contain " .. index .. " jobs. Cannot toggle state.")
+        return false
+    end
     local job = self.root.taken[index]
     local evt
     if self.root.taken[index].Taken then
@@ -3103,11 +3160,13 @@ function library:PlayJobsCompletedCutscene(callback)
     while index <= #self.root.taken do
         local job = self.root.taken[index]
         if job.Completion == globals.completion.Completed then
-            local dest = self.data.boards[ job.BackReference --[[@as string]] ].location
-            if CurrentZone ~= dest.zone or CurrentMap ~= dest.map then
-                self.temp.reward_job_index = index
-                GAME:EnterZone(dest.zone, -1, dest.map, 0)
-                return
+            if job.BackReference and job.BackReference ~= "" then
+                local dest = self.data.boards[job.BackReference --[[@as string]] ].location
+                if CurrentZone ~= dest.zone or CurrentMap ~= dest.map then
+                    self.temp.reward_job_index = index
+                    GAME:EnterZone(dest.zone, -1, dest.map, 0)
+                    return
+                end
             end
             GAME:FadeOut(false, 1)
             local evt = callEvent(job, "BeforeReward")
