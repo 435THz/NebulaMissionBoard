@@ -2572,6 +2572,13 @@ function library:SetMenuOverride(job, data_id, string_key)
     job.MenuOverrides[data_id] = string_key
 end
 
+--- Sets a localization key that will override the client string
+--- @param job jobTable the job to add the override to
+--- @param string_key string the localization key to set
+function library:SetClientOverride(job, string_key)
+    self:SetMenuOverride(job, globals.overrides.CLIENT, string_key)
+end
+
 --- Sets a localization key that will override the objective string
 --- Localization placeholders:
 --- {0} = Client, {1} = Target, {2} = Item
@@ -2596,6 +2603,8 @@ function library:SetDifficultyOverride(job, string_key)
 end
 
 --- Sets a localization key that will override the reward string
+--- Localization placeholders:
+--- {0} = Reward1 (or Client), {1} = Reward2
 --- @param job jobTable the job to add the override to
 --- @param string_key string the localization key to set
 function library:SetRewardOverride(job, string_key)

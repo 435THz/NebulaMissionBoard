@@ -351,7 +351,9 @@ function JobMenu:GenerateSummary()
     summary.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.library.globals.keys.JOB_DIFFICULTY), RogueElements.Loc(16, 96)))
     summary.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.library.globals.keys.JOB_REWARD), RogueElements.Loc(16, 110)))
 
-    summary.Elements:Add(RogueEssence.Menu.MenuText(self.library:GetCharacterName(self.job.Client),RogueElements.Loc(68, 54)))
+    if self.job.MenuOverrides[self.library.globals.overrides.CLIENT] then
+    summary.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.job.MenuOverrides[self.library.globals.overrides.CLIENT]), RogueElements.Loc(68, 54))) else
+    summary.Elements:Add(RogueEssence.Menu.MenuText(self.library:GetCharacterName(self.job.Client),RogueElements.Loc(68, 54))) end
     summary.Elements:Add(RogueEssence.Menu.MenuText(self.library:GetObjectiveString(self.job), RogueElements.Loc(68, 68)))
     summary.Elements:Add(RogueEssence.Menu.MenuText(self.library:GetDestinationString(self.job), RogueElements.Loc(68, 82)))
     summary.Elements:Add(RogueEssence.Menu.MenuText(self.library:GetDifficultyString(self.job, true), RogueElements.Loc(68, 96)))
