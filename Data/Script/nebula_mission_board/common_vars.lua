@@ -10,7 +10,6 @@ function COMMON.HasSidequestInZone(zone)
             return true
         end
     end
-
     return false
 end
 

@@ -1599,7 +1599,7 @@ local settings = {
     --- * <string_key> = the localization key used for the title. The localized strings are fetched from the Menu Text list (strings.resx)
     ---
     --- Localization placeholders:
-    --- * {0}: target (or client, if there is no target)
+    --- * {0}: target
     --- * {1}: dungeon
     --- * {2}: item
     --- @type table<string,string[]>
@@ -1728,7 +1728,7 @@ local settings = {
     --- The localized strings are fetched from the Menu Text list (strings.resx)
     ---
     --- Localization placeholders:
-    --- * {0}: target (or client, if there is no target)
+    --- * {0}: target
     --- * {1}: dungeon
     --- * {2}: item
     --- @type table<string,{[1]:string[], [2]:string[]}>
@@ -1991,7 +1991,7 @@ local settings = {
     --- Format of MonsterIDTable: see the "monsterIdTemplate" function in missiongen_lib.lua
     ---
     --- Localization placeholders:
-    --- * {0}: target (or client, if there is no target)
+    --- * {0}: target
     --- * {1}: dungeon
     --- * {2}: item
     ---@type table<string, table<string,{client:monsterIDTable|"ENFORCER"|"OFFICER"|"AGENT", target:monsterIDTable|string|nil, item: string|nil, flavor:string}[]>>

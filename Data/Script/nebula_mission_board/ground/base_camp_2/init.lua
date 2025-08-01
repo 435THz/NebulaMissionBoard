@@ -16,7 +16,7 @@ function base_camp_2_bulletin.Enter(map)
         MissionGen:PlayJobsCompletedCutscene(base_camp_2_bulletin.Hand_In_Missions)
     end
 
-  base_enter(map)
+    base_enter(map)
 end
 
 

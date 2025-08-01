@@ -1,3 +1,4 @@
+--- Reuse origin code
 local base_game_escort_interact = BATTLE_SCRIPT.EscortInteract
 function BATTLE_SCRIPT.EscortInteract(owner, ownerChar, context, args)
     if (context.Target.LuaData.JobReference) then
