@@ -16,7 +16,7 @@
 --- Difficulty:integer, Item:string|nil, Special:string|nil, HideFloor:boolean, Callbacks:table<eventId,{name:string,args:table}>, MenuOverrides:table<string,string>} A table containing all properties of a job
 --- @alias itemTable {id:string, count:integer|nil, hidden:string|nil} A table describing an InvItem object
 --- @alias monsterIDTable {Species:string, Form:integer|nil, Skin:string|nil, Gender:integer|nil, Nickname:string|nil} A table that can be converted into a MonsterID object
---- @alias eventTable {cancel:boolean, job:jobTable} A table used to handle job events
+--- @alias eventTable {cancel:boolean, job:jobTable, data:table<string, any>} A table used to handle job events
 --- @alias MonsterID {Species:string, Form:integer, Skin:string, Gender:userdata} A MonsterID object
 --- @alias destTable {destinations:string[], occupied:table<string,table<integer,table<integer, boolean>>>, allowed:{segment:integer, floor:integer, difficulty:string}[]} table used for randomly selecting destinations for jobs.
 
@@ -344,7 +344,8 @@ end
 local newEvent = function(job)
     return {
         cancel = false,
-        job = job
+        job = job,
+        data = {}
     }
 end
 -- ----------------------------------------------------------------------------------------- --
@@ -499,9 +500,12 @@ end
 --- Signals the triggering of an event. If the triggering job has a callback associated with it, it will be called as well.
 --- @param job jobTable the job that triggered the event
 --- @param event_id eventId the event that has been triggered
+--- @param extra_data? table<string, any> a table that will be attached to the base event table to pass more data to the callback
 --- @return eventTable #the final state of the event table
-local callEvent = function(job, event_id)
+local callEvent = function(job, event_id, extra_data)
+    if extra_data == nil then extra_data = {} end
     local evt = newEvent(job)
+    evt.data = extra_data
     local cb = job.Callbacks[event_id]
     if cb then
         library.data.mission_callback_root[cb.name](evt, shallowCopy(cb.args or {}))
@@ -2757,7 +2761,7 @@ function library:TakeJob(board_id, index)
     end
     local job = self.root.boards[board_id][index]
     local taken = shallowCopy(job)
-    local evt = callEvent(taken, "JobTake")
+    local evt = callEvent(taken, "JobTake", {board = board_id})
     if evt.cancel then return end
     job.Taken = true
     taken.BackReference = board_id
@@ -3255,11 +3259,11 @@ function library:PlayJobsCompletedCutscene(callback)
                 end
             end
             GAME:FadeOut(false, 1)
-            local evt = callEvent(job, "BeforeReward")
+            local evt = callEvent(job, "BeforeReward", {zone = CurrentZone, map = CurrentMap})
             if not evt.cancel then
                 rewardCutscene(index, callback)
             end
-            local evt2 = callEvent(job, "AfterReward")
+            local evt2 = callEvent(job, "AfterReward", {zone = CurrentZone, map = CurrentMap})
             if not evt2.cancel then
                 self:RemoveTakenJob(index)
             end
@@ -3605,7 +3609,7 @@ end
 ---
 --- The event calling this function is the only one that needs to be added directly to the game via dev mode:
 --- go to Constants>Universal and add it to the ZoneSteps list as a ScriptZoneStep. No arguments required.
-function library:GenerateJobInFloor(zoneContext, _, queue, _, _)
+function library:GenerateJobInFloor(zoneContext, context, queue, seed, _)
     if _DATA.Save.Rescue ~= nil and _DATA.Save.Rescue.Rescuing then
         return
     end
@@ -3647,7 +3651,7 @@ function library:GenerateJobInFloor(zoneContext, _, queue, _, _)
         activeEffect.OnDeaths:Add(priority_gen, RogueEssence.Dungeon.SingleCharScriptEvent("EscortDeathCheck", '{}'))
     end
     if job then
-        local evt = callEvent(job, "FloorStart")
+        local evt = callEvent(job, "FloorStart", {zoneContext = zoneContext, context = context, queue = queue, seed = seed})
         if evt.cancel then return end
 
         ---@cast job jobTable
