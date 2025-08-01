@@ -13,7 +13,7 @@
 --- @alias LibraryRootStruct {boards:table<string,jobTable[]>,taken:jobTable[],dungeon_progress:table<string,table<integer, boolean>>,mission_flags:table<string, any>,previous_limit:integer,escort_jobs:integer} the structure of library.root
 --- @alias jobTable {Client:monsterIDTable, Target:monsterIDTable|nil, Flavor:{[1]:string, [2]:string}, Title:string, Zone:string, Segment:integer,
 --- Floor:integer, RewardType:rewardType, Reward1:itemTable|nil, Reward2:itemTable|nil, Type:jobType, Completion:integer, Taken:boolean, BackReference:string|nil,
---- Difficulty:integer, Item:string|nil, Special:string|nil, HideFloor:boolean, Callbacks:table<eventId,{name:string,args:table}>, ObjectiveOverride:string|nil} A table containing all properties of a job
+--- Difficulty:integer, Item:string|nil, Special:string|nil, HideFloor:boolean, Callbacks:table<eventId,{name:string,args:table}>, MenuOverrides:table<string,string>} A table containing all properties of a job
 --- @alias itemTable {id:string, count:integer|nil, hidden:string|nil} A table describing an InvItem object
 --- @alias monsterIDTable {Species:string, Form:integer|nil, Skin:string|nil, Gender:integer|nil, Nickname:string|nil} A table that can be converted into a MonsterID object
 --- @alias eventTable {cancel:boolean, job:jobTable} A table used to handle job events
@@ -101,6 +101,13 @@ globals.keywords = {}
 globals.keywords.ENFORCER = "ENFORCER"
 globals.keywords.OFFICER = "OFFICER"
 globals.keywords.AGENT = "AGENT"
+--- Keys for MenuOverrides
+---@type table<string,string>
+globals.overrides = {}
+globals.overrides.OBJECTIVE = "OBJ"
+globals.overrides.PLACE = "DUN"
+globals.overrides.DIFFICULTY = "DIF"
+globals.overrides.REWARD = "REW"
 --- Error types
 ---@type table<string,string>
 globals.error_types = {}
@@ -308,8 +315,8 @@ local jobTemplate = function()
         HideFloor = false,
         ---@type table<eventId, {name:string,args:table}> table of callbacks with their respective parameters
         Callbacks = {},
-        ---@type string|nil A string key to be used instead of the job type's objective key
-        ObjectiveOverride = nil
+        ---@type table<string,string> String keys to be used instead of the normal ones in various places in the Job Menu
+        MenuOverrides = {}
     }
 end
 
@@ -1333,7 +1340,7 @@ end
 --- Returns a job from a slot in a specific board.
 --- @param board_id string the id of the board to check
 --- @param index integer? The index of the job to fetch.
---- @return jobTable #the data table of the job at that position, or nil if there is no job there or the board does not exist.
+--- @return jobTable? #the data table of the job at that position, or nil if there is no job there or the board does not exist.
 function library:GetBoardJob(board_id, index)
     if self:BoardExists(board_id) then return self.root.boards[board_id][index] end
     logWarn(globals.warn_types.ID, "Board table of id \"" .. board_id .. "\" does not exist. Cannot get job.")
@@ -1581,7 +1588,7 @@ end
 function library:GetObjectiveString(job)
     local key, client = globals.keys[job.Type], self:GetCharacterName(job.Client)
     local target, item = "[color=#FF0000]TARGET[color]", "[color=#FF0000]ITEM[color]"
-    if job.ObjectiveOverride then key = job.ObjectiveOverride end
+    if job.MenuOverrides[globals.overrides.OBJECTIVE] then key = job.MenuOverrides[globals.overrides.OBJECTIVE] end
     if job.Target then target = self:GetCharacterName(job.Target) end
     if job.Item and job.Item ~= "" then item = self:GetItemName(job.Item) end
     return STRINGS:FormatKey(key, client, target, item)
@@ -1596,8 +1603,11 @@ function library:GetDestinationString(job)
         zone_string, floor_string = self:GetSegmentName(job.Zone, job.Segment)
         floor_string = STRINGS:Format(floor_string, tostring(job.Floor))
     else
-        logWarn(globals.warn_types.DATA, "Could not generate loction string for segment "..tostring(job.Segment).." of "..job.Zone.." because it has no display name")
+        logWarn(globals.warn_types.DATA, "Could not generate location string for segment "..tostring(job.Segment).." of "..job.Zone.." because it has no display name")
         zone_string, floor_string = job.Zone.."["..tostring(job.Segment).."]", tostring(job.Floor).."F"
+    end
+    if job.MenuOverrides[globals.overrides.PLACE] then
+        zone_string = STRINGS:FormatKey(job.MenuOverrides[globals.overrides.PLACE])
     end
 
     if job.HideFloor then
@@ -1612,6 +1622,9 @@ end
 --- @param include_extra? boolean if true, the extra reward string is included in the returned string. Defaults to false
 --- @return string #the difficulty string for the job
 function library:GetDifficultyString(job, include_extra)
+    if job.MenuOverrides[globals.overrides.DIFFICULTY] then
+        return STRINGS:FormatKey(job.MenuOverrides[globals.overrides.DIFFICULTY])
+    end
     local diff_id = self:NumToDifficulty(job.Difficulty)
     local key = self.data.difficulty_data[diff_id].display_key
     local str = STRINGS:FormatKey(key)
@@ -1641,6 +1654,9 @@ function library:GetRewardString(job)
     end
     local pointer = globals.reward_types[job.RewardType][4]
     local key = globals.keys[pointer]
+    if job.MenuOverrides[globals.overrides.REWARD] then
+        key = STRINGS:FormatKey(job.MenuOverrides[globals.overrides.REWARD])
+    end
     return STRINGS:FormatKey(key, reward1, reward2)
 end
 
@@ -2495,15 +2511,13 @@ end
 --- @param title? string the title string key to use for this job. If not set, it will be chosen randomly.
 --- @param flavor? string[] the flavor string key or keys to use for this job. If not set, they will be chosen randomly.
 --- @param hide_floor? boolean if true, the job's floor will be hidden.
---- @param objective_key? string a string key that will be used instead of the job_type's original one to display this job's objective.
 --- @return jobTable? #the new job, or nil if the job generation failed
-function library:MakeNewJob(zone, segment, floor, job_type, client, target, target_item, reward_type, rewards, title, flavor, hide_floor, objective_key)
+function library:MakeNewJob(zone, segment, floor, job_type, client, target, target_item, reward_type, rewards, title, flavor, hide_floor)
     local newJob = jobTemplate()
     newJob.Zone = zone
     newJob.Segment = segment
     newJob.Floor = floor
     newJob.Type = job_type
-    newJob.ObjectiveOverride = objective_key
     local sections = self.data.dungeons[newJob.Zone][newJob.Segment]
     for _, section in ipairs(sections.sections) do
         if section.start > newJob.Floor then break end
@@ -2540,6 +2554,52 @@ function library:MakeNewJob(zone, segment, floor, job_type, client, target, targ
     else rollTitle(newJob) end
 
     return newJob
+end
+
+--- Sets the floor as hidden or unhidden. Convenience function to avoid writing nil 15 times.
+--- @param job jobTable the job to be edited
+--- @param state? boolean what new state to set. If omitted, toggles the current state
+function library:SetFloorHidden(job, state)
+    if state == nil then state = not job.HideFloor end
+    job.HideFloor = state
+end
+
+--- Sets a localization key that will override the given data in menus
+--- @param job jobTable the job to add the override to
+--- @param data_id string the data to override to set
+--- @param string_key string the localization key to set
+function library:SetMenuOverride(job, data_id, string_key)
+    job.MenuOverrides[data_id] = string_key
+end
+
+--- Sets a localization key that will override the objective string
+--- Localization placeholders:
+--- {0} = Client, {1} = Target, {2} = Item
+--- @param job jobTable the job to add the override to
+--- @param string_key string the localization key to set
+function library:SetObjectiveOverride(job, string_key)
+    self:SetMenuOverride(job, globals.overrides.OBJECTIVE, string_key)
+end
+
+--- Sets a localization key that will override the dungeon string (not affecting the floor)
+--- @param job jobTable the job to add the override to
+--- @param string_key string the localization key to set
+function library:SetDungeonOverride(job, string_key)
+    self:SetMenuOverride(job, globals.overrides.PLACE, string_key)
+end
+
+--- Sets a localization key that will override the difficulty string
+--- @param job jobTable the job to add the override to
+--- @param string_key string the localization key to set
+function library:SetDifficultyOverride(job, string_key)
+    self:SetMenuOverride(job, globals.overrides.DIFFICULTY, string_key)
+end
+
+--- Sets a localization key that will override the reward string
+--- @param job jobTable the job to add the override to
+--- @param string_key string the localization key to set
+function library:SetRewardOverride(job, string_key)
+    self:SetMenuOverride(job, globals.overrides.REWARD, string_key)
 end
 
 --- Adds a job to a specific board, updating its BackReference in the process. This function ignores board limits, and fails if the board does not exists.
@@ -2675,7 +2735,7 @@ end
 --- Marks the job as taken and adds a copy of it to the taken board.
 --- The copy will have its BackReference set to board_id.
 --- @param board_id string the id of the board the job is in
---- @param index integer? The index of the job to take. DFefaults to 1
+--- @param index integer? The index of the job to take. Defaults to 1
 function library:TakeJob(board_id, index)
     index = index or 1
     if not self:BoardExists(board_id) then
