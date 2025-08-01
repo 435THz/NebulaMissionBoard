@@ -3217,6 +3217,10 @@ function library:ExitDungeonMissionCheckEx(result, _, zone, segment)
         end
     end
 
+    for _, job in ipairs(self.root.taken) do
+        callEvent(job, "DungeonEnd", {result = result})
+    end
+
     if MissionGen.root.mission_flags.MissionCompleted then
         -- PlayJobsCompletedCutscene will update the boards after it's done
         resetAnims()

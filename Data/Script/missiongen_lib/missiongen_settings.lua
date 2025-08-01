@@ -13,7 +13,7 @@
 --- @alias jobType "RESCUE_SELF"|"RESCUE_FRIEND"|"ESCORT"|"EXPLORATION"|"DELIVERY"|"LOST_ITEM"|"OUTLAW"|"OUTLAW_ITEM"|"OUTLAW_ITEM_UNK"|"OUTLAW_MONSTER_HOUSE"|"OUTLAW_FLEE"
 --- @alias rewardType "money"|"item"|"money_item"|"item_item"|"client"|"exclusive"
 --- @alias emotionType "Normal"|"Happy"|"Pain"|"Angry"|"Worried"|"Sad"|"Crying"|"Shouting"|"Teary-Eyed"|"Determined"|"Joyous"|"Inspired"|"Surprised"|"Dizzy"|"Special0"|"Special1"|"Sigh"|"Stunned"|"Special2"|"Special3"
---- @alias eventId "JobTake"|"JobActivate"|"JobDeactivate"|"DungeonStart"|"FloorStart"|"JobComplete"|"JobFail"|"BeforeReward"|"AfterReward"
+--- @alias eventId "JobTake"|"JobActivate"|"JobDeactivate"|"DungeonStart"|"DungeonEnd"|"FloorStart"|"JobComplete"|"JobFail"|"BeforeReward"|"AfterReward"
 --- @alias AgentIDTable {Species:string, Form:integer|nil, Skin:string|nil, Gender:integer, Weight:integer|nil, Unique:boolean|nil}
 --- @alias Character any RogueEssence.Dungeon.Character
 --- @alias MonsterTeam any RogueEssence.Dungeon.MonsterTeam
