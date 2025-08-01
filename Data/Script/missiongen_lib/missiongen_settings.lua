@@ -1602,6 +1602,7 @@ local settings = {
     --- * {0}: target
     --- * {1}: dungeon
     --- * {2}: item
+    --- * {3}: client (almost never used, hence why at the end)
     --- @type table<string,string[]>
     job_titles =  {
         RESCUE_SELF = {
@@ -1731,6 +1732,7 @@ local settings = {
     --- * {0}: target
     --- * {1}: dungeon
     --- * {2}: item
+    --- * {3}: client (almost never used, hence why at the end)
     --- @type table<string,{[1]:string[], [2]:string[]}>
     job_flavor =  {
         RESCUE_SELF = {
@@ -1994,6 +1996,7 @@ local settings = {
     --- * {0}: target
     --- * {1}: dungeon
     --- * {2}: item
+    --- * {3}: client (almost never used, hence why at the end)
     ---@type table<string, table<string,{client:monsterIDTable|"ENFORCER"|"OFFICER"|"AGENT", target:monsterIDTable|string|nil, item: string|nil, flavor:string}[]>>
     special_data = {
         LOVER = {

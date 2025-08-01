@@ -114,10 +114,13 @@ function BoardMenu:GenerateOptions()
         ---@cast job jobTable
         local zone_str, floor_pattern = self.library:GetSegmentName(job.Zone, job.Segment)
         local target, item = "[color=#FF0000]TARGET[color]", "[color=#FF0000]ITEM[color]"
+        local client = self.library:GetCharacterName(job.Client)
+        if self.job.MenuOverrides[self.library.globals.overrides.CLIENT] then
+        client = STRINGS:FormatKey(self.job.MenuOverrides[self.library.globals.overrides.CLIENT]) end
         if job.Target then target = self.library:GetCharacterName(job.Target) end
         if job.Item and job.Item ~= "" then item = self.library:GetItemName(job.Item) end
 
-        local title = STRINGS:FormatKey(job.Title, target, zone_str, item)
+        local title = STRINGS:FormatKey(job.Title, target, zone_str, item, client)
         local taken_string = 'false'
 
         if job.Taken then
@@ -329,6 +332,9 @@ function JobMenu:GenerateSummary()
     local summary = RogueEssence.Menu.SummaryMenu(RogueElements.Rect(32, 32, 256, 176))
     local dungeon = self.library:GetSegmentName(self.job.Zone, self.job.Segment)
     local target, item = "[color=#FF0000]TARGET[color]", "[color=#FF0000]ITEM[color]"
+    local client = self.library:GetCharacterName(self.job.Client)
+    if self.job.MenuOverrides[self.library.globals.overrides.CLIENT] then
+    client = STRINGS:FormatKey(self.job.MenuOverrides[self.library.globals.overrides.CLIENT]) end
     if self.job.Target then target = self.library:GetCharacterName(self.job.Target) end
     if self.job.Item and self.job.Item ~= "" then item = self.library:GetItemName(self.job.Item) end
 
@@ -342,9 +348,9 @@ function JobMenu:GenerateSummary()
     summary.Elements:Add(RogueEssence.Menu.MenuDivider(RogueElements.Loc(8, summary.Bounds.Height - 24), summary.Bounds.Width - 8 * 2))
     summary.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.library.globals.keys.JOB_ACCEPTED, #self.library.root.taken, self.library:GetTakenSize()), RogueElements.Loc(96, summary.Bounds.Height - 20)))
 
-    summary.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.job.Flavor[1], target, dungeon, item), RogueElements.Loc(16, 24)))
+    summary.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.job.Flavor[1], target, dungeon, item, client), RogueElements.Loc(16, 24)))
     if self.job.Flavor[2] and self.job.Flavor[2] ~= "" then
-    summary.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.job.Flavor[2], target, dungeon, item), RogueElements.Loc(16, 36))) end
+    summary.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.job.Flavor[2], target, dungeon, item, client), RogueElements.Loc(16, 36))) end
     summary.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.library.globals.keys.JOB_CLIENT), RogueElements.Loc(16, 54)))
     summary.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.library.globals.keys.JOB_OBJECTIVE), RogueElements.Loc(16, 68)))
     summary.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.library.globals.keys.JOB_PLACE), RogueElements.Loc(16, 82)))
