@@ -504,7 +504,7 @@ local callEvent = function(job, event_id)
     local evt = newEvent(job)
     local cb = job.Callbacks[event_id]
     if cb then
-        library.data.mission_callback_root[cb.name](evt, cb.args or {})
+        library.data.mission_callback_root[cb.name](evt, shallowCopy(cb.args or {}))
     end
     return evt
 end
