@@ -1,4 +1,4 @@
--- PMDO Mission Generation Library v1.0.1, by MistressNebula
+-- PMDO Mission Generation Library v1.0.2, by MistressNebula
 -- Settings file
 -- ----------------------------------------------------------------------------------------- --
 -- This file exists as a way to separate the library's configurable data from its functions.
