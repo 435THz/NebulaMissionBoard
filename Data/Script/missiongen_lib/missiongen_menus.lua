@@ -115,8 +115,8 @@ function BoardMenu:GenerateOptions()
         local zone_str, floor_pattern = self.library:GetSegmentName(job.Zone, job.Segment)
         local target, item = "[color=#FF0000]TARGET[color]", "[color=#FF0000]ITEM[color]"
         local client = self.library:GetCharacterName(job.Client)
-        if self.job.MenuOverrides[self.library.globals.overrides.CLIENT] then
-        client = STRINGS:FormatKey(self.job.MenuOverrides[self.library.globals.overrides.CLIENT]) end
+        if job.MenuOverrides and job.MenuOverrides[self.library.globals.overrides.CLIENT] then
+        client = STRINGS:FormatKey(job.MenuOverrides[self.library.globals.overrides.CLIENT]) end
         if job.Target then target = self.library:GetCharacterName(job.Target) end
         if job.Item and job.Item ~= "" then item = self.library:GetItemName(job.Item) end
 
@@ -333,7 +333,7 @@ function JobMenu:GenerateSummary()
     local dungeon = self.library:GetSegmentName(self.job.Zone, self.job.Segment)
     local target, item = "[color=#FF0000]TARGET[color]", "[color=#FF0000]ITEM[color]"
     local client = self.library:GetCharacterName(self.job.Client)
-    if self.job.MenuOverrides[self.library.globals.overrides.CLIENT] then
+    if self.job.MenuOverrides and self.job.MenuOverrides[self.library.globals.overrides.CLIENT] then
     client = STRINGS:FormatKey(self.job.MenuOverrides[self.library.globals.overrides.CLIENT]) end
     if self.job.Target then target = self.library:GetCharacterName(self.job.Target) end
     if self.job.Item and self.job.Item ~= "" then item = self.library:GetItemName(self.job.Item) end
@@ -357,7 +357,7 @@ function JobMenu:GenerateSummary()
     summary.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.library.globals.keys.JOB_DIFFICULTY), RogueElements.Loc(16, 96)))
     summary.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.library.globals.keys.JOB_REWARD), RogueElements.Loc(16, 110)))
 
-    if self.job.MenuOverrides[self.library.globals.overrides.CLIENT] then
+    if self.job.MenuOverrides and self.job.MenuOverrides[self.library.globals.overrides.CLIENT] then
     summary.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.job.MenuOverrides[self.library.globals.overrides.CLIENT]), RogueElements.Loc(68, 54))) else
     summary.Elements:Add(RogueEssence.Menu.MenuText(self.library:GetCharacterName(self.job.Client),RogueElements.Loc(68, 54))) end
     summary.Elements:Add(RogueEssence.Menu.MenuText(self.library:GetObjectiveString(self.job), RogueElements.Loc(68, 68)))

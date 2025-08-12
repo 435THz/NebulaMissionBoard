@@ -1592,7 +1592,7 @@ end
 function library:GetObjectiveString(job)
     local key, client = globals.keys[job.Type], self:GetCharacterName(job.Client)
     local target, item = "[color=#FF0000]TARGET[color]", "[color=#FF0000]ITEM[color]"
-    if job.MenuOverrides[globals.overrides.OBJECTIVE] then key = job.MenuOverrides[globals.overrides.OBJECTIVE] end
+    if job.MenuOverrides and job.MenuOverrides[globals.overrides.OBJECTIVE] then key = job.MenuOverrides[globals.overrides.OBJECTIVE] end
     if job.Target then target = self:GetCharacterName(job.Target) end
     if job.Item and job.Item ~= "" then item = self:GetItemName(job.Item) end
     return STRINGS:FormatKey(key, client, target, item)
@@ -1610,7 +1610,7 @@ function library:GetDestinationString(job)
         logWarn(globals.warn_types.DATA, "Could not generate location string for segment "..tostring(job.Segment).." of "..job.Zone.." because it has no display name")
         zone_string, floor_string = job.Zone.."["..tostring(job.Segment).."]", tostring(job.Floor).."F"
     end
-    if job.MenuOverrides[globals.overrides.PLACE] then
+    if job.MenuOverrides and job.MenuOverrides[globals.overrides.PLACE] then
         zone_string = STRINGS:FormatKey(job.MenuOverrides[globals.overrides.PLACE])
     end
 
@@ -1626,7 +1626,7 @@ end
 --- @param include_extra? boolean if true, the extra reward string is included in the returned string. Defaults to false
 --- @return string #the difficulty string for the job
 function library:GetDifficultyString(job, include_extra)
-    if job.MenuOverrides[globals.overrides.DIFFICULTY] then
+    if job.MenuOverrides and job.MenuOverrides[globals.overrides.DIFFICULTY] then
         return STRINGS:FormatKey(job.MenuOverrides[globals.overrides.DIFFICULTY])
     end
     local diff_id = self:NumToDifficulty(job.Difficulty)
@@ -1658,7 +1658,7 @@ function library:GetRewardString(job)
     end
     local pointer = globals.reward_types[job.RewardType][4]
     local key = globals.keys[pointer]
-    if job.MenuOverrides[globals.overrides.REWARD] then
+    if job.MenuOverrides and job.MenuOverrides[globals.overrides.REWARD] then
         key = STRINGS:FormatKey(job.MenuOverrides[globals.overrides.REWARD])
     end
     return STRINGS:FormatKey(key, reward1, reward2)
@@ -2573,6 +2573,7 @@ end
 --- @param data_id string the data to override to set
 --- @param string_key string the localization key to set
 function library:SetMenuOverride(job, data_id, string_key)
+    job.MenuOverrides = job.MenuOverrides or {}
     job.MenuOverrides[data_id] = string_key
 end
 
