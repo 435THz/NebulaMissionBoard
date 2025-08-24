@@ -1342,7 +1342,23 @@ function checker.check(library)
                     end
                 else
                     LogError("\"boards[" ..
-                    tostring(id) .. "].size\" is not a number. This will cause the library to fail.")
+                        tostring(id) .. "].size\" is not a number. This will cause the library to fail.")
+                end
+                if data.dungeons ~= nil then
+                    if type(data.dungeons) == "table" then
+                        if #data.dungeons > 0 then
+                            for i, entry in ipairs(data.dungeons) do
+                                if type(entry) ~= "string" then
+                                    LogError("\"boards[" ..
+                                        tostring(id) ..
+                                        "].dungeons[" ..
+                                        tostring(i) .. "]\" is not a valid zone id. This may cause the library to fail.")
+                                end
+                            end
+                        else
+                            LogWarn("\"boards[" .. tostring(id) .. "].dungeons\" is empty. This will make the board never generate anything.")
+                        end
+                    end
                 end
                 if type(data.job_types) == "table" then
                     for i, entry in ipairs(data.job_types) do

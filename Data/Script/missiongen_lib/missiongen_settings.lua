@@ -35,7 +35,7 @@ local settings = {
     --- * location: a zone id and a map index. This data is where the player will be brought for the job completion cutscene. All of these maps must call library:PlayJobsCompletedCutscene before fade-in for the reward sequence to work correctly.
     --- * condition: Optional. A function called to determine if library:PopulateBoards() should fill out this board. It receives the library object as an argument and returns a boolean. If it returns true, the board is filled out. If it returns false, it is left empty. If this property is missing, this board will always be active.
     --- * job_types: a list of job types and their probability weight. Higher weight means more common.
-    ---@type table<string, {display_key:string, size:integer, condition:fun(library:table):(boolean)|nil, location:{zone:string, map:integer}, job_types:{id:string, weight:integer}[]}>
+    ---@type table<string, {display_key:string, size:integer, condition:fun(library:table):(boolean)|nil, location:{zone:string, map:integer}, job_types:{id:string, weight:integer}[], dungeons:string[]|nil}>
     boards = {
         quest_board = {
             display_key = "BOARD_QUEST_TITLE",

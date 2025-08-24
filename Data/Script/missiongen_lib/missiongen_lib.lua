@@ -2080,7 +2080,7 @@ function library:GetValidDestinationsInZone(zone, floors_occupied)
 end
 
 --- Initializes a destination table by calling ``library:GetValidZones`` and ``library.GetFloorsOccupied``,
---- but leaving the "allowed" table empty for more efficient use later on.
+--- but leaves the "allowed" table empty for more efficient use later on.
 --- @return destTable the table that will be used for destination selection.
 function library:CompileDestinationData()
     return {
@@ -2088,6 +2088,32 @@ function library:CompileDestinationData()
         occupied = self:GetFloorsOccupied(),
         allowed = {} --[[@as table<string,{segment:integer, floor:integer, difficulty:string}[]>]]
     }
+end
+
+--- Given a destination data list and a list of zone ids, it returns the intersection between the valid zones and the requested ones.
+--- If the zone id list is nil, it returns the list of valid zone indices, without filtering.
+---@param dest_data destTable List of possible destination zones.
+---@param zones string[]|table<string, boolean>|nil List or set of zone ids to filter
+---@return {zone:string, index:integer}[] the list of filtered zones, paired with their original dest_data index
+function library:FilterDestinationData(dest_data, zones)
+    if not dest_data then return {} end
+    if zones == nil then zones = dest_data.destinations end
+    ---@type table<string, boolean>
+    local indexer = {}
+    if zones[1] == nil then -- assume it's already a set if integer indexing doesn't work
+        --- @cast zones table<string, boolean>
+        indexer = zones
+    else
+        --- @cast zones string[]
+        for _, zone in ipairs(zones) do indexer[zone] = true end
+    end
+    local filtered = {}
+    for i, zone_id in ipairs(dest_data.destinations) do
+        if indexer[zone_id] then
+            table.insert(filtered, {zone = zone_id, index = i})
+        end
+    end
+    return filtered
 end
 
 --- Counts how many jobs with guests have been generated for each dungeon.
@@ -2125,20 +2151,26 @@ function library:PopulateBoard(board_id, dest_data)
     end
     self.root.boards[board_id] = self.root.boards[board_id] or {}
     if not dest_data then dest_data = self:CompileDestinationData() end
+    local filtered_destinations = library:FilterDestinationData(dest_data, self.data.boards[board_id].dungeons)
     local guest_count = self:GetDungeonsGuestCount()
 
     while (self:GetBoardCount(board_id) < self:GetBoardSize(board_id)) do
 
         -- choose destination
-        if #dest_data.destinations <= 0 then break end
-        local zone, zone_index = self:WeightlessRandom(dest_data.destinations)
-        ---@cast zone string because we already checked there is at least 1 possible result
+        if #filtered_destinations <= 0 then break end
+        local zone_struct, struct_index = self:WeightlessRandom(filtered_destinations)
+        ---@cast zone_struct {zone:string, index:integer} because we already checked there is at least 1 possible result
+        local zone = zone_struct.zone
 
         if not dest_data.allowed[zone] then dest_data.allowed[zone] = self:GetValidDestinationsInZone(zone, dest_data.occupied) end
         if #dest_data.allowed[zone] <= 0 then
             --clean up and try again if there are no valid destinations in this dungeon
             dest_data.allowed[zone] = nil
-            table.remove(dest_data.destinations, zone_index)
+            table.remove(dest_data.destinations, zone_struct.index)
+            table.remove(filtered_destinations, struct_index)
+            for _, struct in ipairs(filtered_destinations) do
+                if struct.index > zone_struct.index then struct.index = struct.index - 1 end
+            end
         else
             local dest2, dest2_index = self:WeightlessRandom(dest_data.allowed[zone])
             ---@cast dest2 {segment:integer, floor:integer, difficulty:string} because we already checked there is at least 1 possible result
@@ -2191,7 +2223,11 @@ function library:PopulateBoard(board_id, dest_data)
                 if #dest_data.allowed[zone] <= 0 then
                     --clean up if empty, then try again
                     dest_data.allowed[zone] = nil
-                    table.remove(dest_data.destinations, zone_index)
+                    table.remove(dest_data.destinations, zone_struct.index)
+                    table.remove(filtered_destinations, struct_index)
+                    for _, struct in ipairs(filtered_destinations) do
+                        if struct.index > zone_struct.index then struct.index = struct.index - 1 end
+                    end
                 end
             else
                 local job_type = self:WeightedRandom(possible_job_types).id --[[@as string]] --it is safe because we already checked there is at least 1 possible result
@@ -2204,8 +2240,13 @@ function library:PopulateBoard(board_id, dest_data)
                 dest_data.occupied[zone][segment][floor] = true
                 table.remove(dest_data.allowed[zone], dest2_index)
                 if #dest_data.allowed[zone] <= 0 then
+                    -- clean up if this dungeon is full
                     dest_data.allowed[zone] = nil
-                    table.remove(dest_data.destinations, zone_index)
+                    table.remove(dest_data.destinations, zone_struct.index)
+                    table.remove(filtered_destinations, struct_index)
+                    for _, struct in ipairs(filtered_destinations) do
+                        if struct.index > zone_struct.index then struct.index = struct.index - 1 end
+                    end
                 end
             end
         end
