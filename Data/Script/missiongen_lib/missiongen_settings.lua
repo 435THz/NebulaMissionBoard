@@ -2209,52 +2209,77 @@ end
 
 settings.AddDungeonSection("tropical_path", 0, 3, "F", 4)
 settings.AddDungeonSection("faultline_ridge", 0, 6, "D", 10)
+
 settings.AddDungeonSection("guildmaster_trail", 0, 15, "STAR_2", 30, false)
 settings.AddDungeonSection("guildmaster_trail", 0, 19, "STAR_3")
 settings.AddDungeonSection("guildmaster_trail", 0, 23, "STAR_4")
 settings.AddDungeonSection("guildmaster_trail", 0, 27, "STAR_5")
+
 settings.AddDungeonSection("lava_floe_island", 0, 9, "C", 16)
 settings.AddDungeonSection("lava_floe_island", 1, 1, "STAR_1", 9)
+
 settings.AddDungeonSection("castaway_cave", 0, 7, "B", 12)
+
 settings.AddDungeonSection("faded_trail", 0, 4, "E", 7)
 settings.AddDungeonSection("faded_trail", 1, 1, "D", 3)
+
 settings.AddDungeonSection("bramble_woods", 0, 4, "E", 7)
 settings.AddDungeonSection("bramble_woods", 1, 1, "D", 3)
+
 settings.AddDungeonSection("trickster_woods", 0, 6, "C", 10)
 settings.AddDungeonSection("trickster_woods", 1, 1, "B", 4)
+
 settings.AddDungeonSection("overgrown_wilds", 0, 7, "C", 12)
 settings.AddDungeonSection("overgrown_wilds", 1, 1, "B", 4)
+
 settings.AddDungeonSection("moonlit_courtyard", 0, 8, "C", 14)
 settings.AddDungeonSection("moonlit_courtyard", 0, 12, "B")
 settings.AddDungeonSection("moonlit_courtyard", 1, 1, "A", 6)
+
 settings.AddDungeonSection("ambush_forest", 0, 11, "B", 20)
 settings.AddDungeonSection("ambush_forest", 0, 16, "A")
+
 settings.AddDungeonSection("sickly_hollow", 0, 9, "S", 16, false)
 settings.AddDungeonSection("sickly_hollow", 0, 13, "STAR_1")
+
 settings.AddDungeonSection("secret_garden", 0, 15, "STAR_3", 40, false)
 settings.AddDungeonSection("secret_garden", 0, 20, "STAR_4")
 settings.AddDungeonSection("secret_garden", 0, 25, "STAR_5")
 settings.AddDungeonSection("secret_garden", 0, 30, "STAR_6")
 settings.AddDungeonSection("secret_garden", 0, 34, "STAR_7")
 settings.AddDungeonSection("secret_garden", 0, 38, "STAR_8")
+
 settings.AddDungeonSection("flyaway_cliffs", 0, 6, "C", 10)
+
+settings.AddDungeonSection("wayward_wetlands", 0, 8, "A", 16)
+settings.AddDungeonSection("wayward_wetlands", 0, 12, "S")
+
 settings.AddDungeonSection("fertile_valley", 0, 5, "D", 8)
 settings.AddDungeonSection("fertile_valley", 1, 1, "C", 5)
+
 settings.AddDungeonSection("copper_quarry", 0, 7, "C", 11)
 settings.AddDungeonSection("copper_quarry", 0, 1, "B", 4)
+
 settings.AddDungeonSection("depleted_basin", 0, 5, "C", 9)
 settings.AddDungeonSection("forsaken_desert", 0, 2, "S", 4)
+
 settings.AddDungeonSection("relic_tower", 0, 8, "S", 13)
 settings.AddDungeonSection("relic_tower", 0, 11, "STAR_1")
+
 settings.AddDungeonSection("sleeping_caldera", 0, 10, "B", 18)
 settings.AddDungeonSection("sleeping_caldera", 0, 15, "A")
+
 settings.AddDungeonSection("thunderstruck_pass", 0, 8, "B", 14)
+
 settings.AddDungeonSection("veiled_ridge", 0, 9, "B", 16)
 settings.AddDungeonSection("veiled_ridge", 1, 1, "A", 6)
+
 settings.AddDungeonSection("snowbound_path", 0, 10, "B", 18)
 settings.AddDungeonSection("snowbound_path", 1, 1, "A", 6)
+
 settings.AddDungeonSection("treacherous_mountain", 0, 11, "A", 20)
 settings.AddDungeonSection("treacherous_mountain", 0, 16, "S")
+
 settings.AddDungeonSection("champions_road", 0, 13, "S", 23)
 settings.AddDungeonSection("champions_road", 0, 19, "STAR_1")
 
