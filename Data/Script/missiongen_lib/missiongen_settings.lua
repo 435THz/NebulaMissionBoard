@@ -140,21 +140,21 @@ local settings = {
     ---@type table<string, {display_key:string, money_reward:integer, extra_reward:integer, outlaw_level:integer|nil, escort_level:integer|nil}>
     difficulty_data = {
         F = {display_key = "RANK_STRING_F", money_reward = 100, extra_reward = 0},
-        E = {display_key = "RANK_STRING_E", money_reward = 200, extra_reward = 100},
-        D = {display_key = "RANK_STRING_D", money_reward = 400, extra_reward = 200},
-        C = {display_key = "RANK_STRING_C", money_reward = 600, extra_reward = 400},
-        B = {display_key = "RANK_STRING_B", money_reward = 700, extra_reward = 1250},
-        A = {display_key = "RANK_STRING_A", money_reward = 1500, extra_reward = 2500},
-        S = {display_key = "RANK_STRING_S", money_reward = 3000, extra_reward = 5000},
-        STAR_1 = {display_key = "RANK_STRING_STAR_1", money_reward = 6000, extra_reward = 10000},
-        STAR_2 = {display_key = "RANK_STRING_STAR_2", money_reward = 10000, extra_reward = 20000},
-        STAR_3 = {display_key = "RANK_STRING_STAR_3", money_reward = 15000, extra_reward = 30000},
-        STAR_4 = {display_key = "RANK_STRING_STAR_4", money_reward = 20000, extra_reward = 40000},
-        STAR_5 = {display_key = "RANK_STRING_STAR_5", money_reward = 25000, extra_reward = 50000},
-        STAR_6 = {display_key = "RANK_STRING_STAR_6", money_reward = 30000, extra_reward = 60000},
-        STAR_7 = {display_key = "RANK_STRING_STAR_7", money_reward = 35000, extra_reward = 70000},
-        STAR_8 = {display_key = "RANK_STRING_STAR_8", money_reward = 40000, extra_reward = 80000},
-        STAR_9 = {display_key = "RANK_STRING_STAR_9", money_reward = 45000, extra_reward = 90000}
+        E = {display_key = "RANK_STRING_E", money_reward = 200, extra_reward = 50},
+        D = {display_key = "RANK_STRING_D", money_reward = 300, extra_reward = 100},
+        C = {display_key = "RANK_STRING_C", money_reward = 500, extra_reward = 200},
+        B = {display_key = "RANK_STRING_B", money_reward = 750, extra_reward = 500},
+        A = {display_key = "RANK_STRING_A", money_reward = 1250, extra_reward = 1000},
+        S = {display_key = "RANK_STRING_S", money_reward = 2500, extra_reward = 2000},
+        STAR_1 = {display_key = "RANK_STRING_STAR_1", money_reward = 4000, extra_reward = 3000},
+        STAR_2 = {display_key = "RANK_STRING_STAR_2", money_reward = 6000, extra_reward = 4000},
+        STAR_3 = {display_key = "RANK_STRING_STAR_3", money_reward = 8000, extra_reward = 5000},
+        STAR_4 = {display_key = "RANK_STRING_STAR_4", money_reward = 10000, extra_reward = 6000},
+        STAR_5 = {display_key = "RANK_STRING_STAR_5", money_reward = 12500, extra_reward = 8000},
+        STAR_6 = {display_key = "RANK_STRING_STAR_6", money_reward = 15000, extra_reward = 10000},
+        STAR_7 = {display_key = "RANK_STRING_STAR_7", money_reward = 18000, extra_reward = 12000},
+        STAR_8 = {display_key = "RANK_STRING_STAR_8", money_reward = 20000, extra_reward = 16000},
+        STAR_9 = {display_key = "RANK_STRING_STAR_9", money_reward = 25000, extra_reward = 20000}
     },
     --- Function that changes the level of guests based on the player's level. It must return the new level for the guest, or it will have no effect.
     --- Arguments:
