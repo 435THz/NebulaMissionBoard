@@ -221,7 +221,7 @@
     <value>...{0} doesn't seem to be around.</value>
     <comment></comment>  </data>
   <data name="MISSION_EXPLORATION_REACHED" xml:space="preserve">
-    <value>Yes!  You've reached the target floor with {0}!</value>
+    <value>Yes! You've reached the target floor with {0}!</value>
     <comment></comment>  </data>
   <data name="MISSION_EXPLORATION_THANKS" xml:space="preserve">
     <value>Thank you for exploring the dungeon with me!</value>
