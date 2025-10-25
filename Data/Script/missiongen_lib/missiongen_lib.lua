@@ -3452,7 +3452,7 @@ function library:AwardItem(itemTable)
             itemTable.count = 1
         end
     end
-    itemTable.count = math.min(itemTable.count, itemEntry.MaxStack)
+    itemTable.count = math.max(1, math.min(itemTable.count, itemEntry.MaxStack))
 
     local item = RogueEssence.Dungeon.InvItem(itemTable.id, false, itemTable.count)
     if itemTable.hidden then item.HiddenValue = itemTable.hidden end
