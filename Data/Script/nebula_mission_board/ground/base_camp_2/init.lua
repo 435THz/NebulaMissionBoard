@@ -68,7 +68,7 @@ function base_camp_2_bulletin.NPC_Reroll_Action(obj, activator)
     for _, job in ipairs(MissionGen.root.boards["quest_board"]) do
         local diff_mult = job.Difficulty
         if job.Difficulty > 7 then diff_mult = diff_mult + job.Difficulty - 7 end
-        added_price = added_price + 50*diff_mult
+        added_price = added_price + 30*diff_mult
         if job.Taken then
             anyTaken = true
             break
@@ -90,7 +90,7 @@ function base_camp_2_bulletin.NPC_Reroll_Action(obj, activator)
         UI:WaitForChoice()
         if UI:ChoiceResult() then
             local rerolls = SV.jobs.rerolls or 0
-            local base = 500+500*(2^rerolls)
+            local base = 250+500*(2^rerolls)
             local cost = base + added_price
             UI:ChoiceMenuYesNo(STRINGS:Format(STRINGS.MapStrings['Mission_Board_Reroll_Accept'], STRINGS:FormatKey("MONEY_AMOUNT", cost)), true)
             UI:WaitForChoice()
