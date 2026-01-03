@@ -32,7 +32,7 @@ local library = {
     --- Settings data imported from missiongen_settings.lua
     data = require("missiongen_lib.missiongen_settings"),
     --- shortcut to the root of the saved mission data, made accessible for quick reference.
-    --- NEVER. EVER. CHANGE THIS VALUE.
+    --- NEVER. EVER. CHANGE THIS VALUE YOURSELF: IT IS LOADED BY ``library.load()``.
     ---@type LibraryRootStruct
     root = SV
 }
@@ -257,8 +257,8 @@ end
 
 --- Loads the dungeon progress table. Any completed dungeons that are missing from this table will have only
 --- their segment 0 marked as completed.
---- In other words, when a mod with this library is loaded for the first time, it will assume, for all dungeons,
---- that only segment 0 has been completed
+--- In other words, when a mod with this library is loaded for the first time, it will assume, for all completed
+--- dungeons, that only segment 0 has been completed.
 function library:loadDungeonTable()
     self.root.dungeon_progress = self.root.dungeon_progress or {}
     local UnlockState = RogueEssence.Data.GameProgress.UnlockState
@@ -849,11 +849,12 @@ local filterMoveset = function(chara, tm_allowed, tutor_allowed, egg_allowed, bl
             status = {}
         }
     }
+    ---@type {id: string, enabled: boolean, getList: fun(integer):{[integer]: {Skill:string, Level:integer?}, Count: integer}}[]
     local workPhases = {
-        {"level", true,          function(form) return form.LevelSkills end},
-        {"tm",    tm_allowed,    function(form) return form.TeachSkills end},
-        {"tutor", tutor_allowed, function(form) return form.SecretSkills end},
-        {"egg",   egg_allowed,   function(form) return form.SharedSkills end}
+        {id = "level", enabled = true,          getList = function(form) return form.LevelSkills end},
+        {id = "tm",    enabled = tm_allowed,    getList = function(form) return form.TeachSkills end},
+        {id = "tutor", enabled = tutor_allowed, getList = function(form) return form.SecretSkills end},
+        {id = "egg",   enabled = egg_allowed,   getList = function(form) return form.SharedSkills end}
     }
     local stages = {}
     local evolutionStage = chara.BaseForm
@@ -873,9 +874,9 @@ local filterMoveset = function(chara, tm_allowed, tutor_allowed, egg_allowed, bl
 
     for _, form in ipairs(stages) do
         for _, phase in ipairs(workPhases) do
-            if phase[2] then
-                local supertable = phase[1]
-                local skillList = phase[3](form)
+            if phase.enabled then
+                local supertable = phase.id
+                local skillList = phase.getList(form)
                 for i=0, skillList.Count-1, 1 do
                     if not skillList[i].Level or skillList[i].Level<=chara.Level then
                         local skill = skillList[i].Skill

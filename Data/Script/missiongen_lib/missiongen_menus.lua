@@ -251,7 +251,7 @@ end
 --- Runs a BoardMenu instance and returns its selected index
 --- @param library table the entire job library structure
 --- @param board_id string|nil the id of the board to visualize. Set to nil to select the taken list.
---- @param start_choice|nil number the choice that should be selected first. Defaults to 1
+--- @param start_choice number|nil the choice that should be selected first. Defaults to 1
 --- @return integer #the index of the chosen option, or -1 if the menu was exited without selecting anything.
 function BoardMenu.run(library, board_id, start_choice)
     local ret = -1
@@ -342,7 +342,7 @@ function JobMenu:GenerateSummary()
     summary.Elements:Add(RogueEssence.Menu.MenuDivider(RogueElements.Loc(8, 8 + 12), summary.Bounds.Width - 8 * 2))
 
     --Standard title. Reuse this whenever a title is needed.
-    summary.Elements:Add(RogueEssence.Menu.MenuText(Text.FormatKey(self.library.globals.keys.JOB_SUMMARY), RogueElements.Loc(16, 8)))
+    summary.Elements:Add(RogueEssence.Menu.MenuText(STRINGS:FormatKey(self.library.globals.keys.JOB_SUMMARY), RogueElements.Loc(16, 8)))
 
     --Accepted element
     summary.Elements:Add(RogueEssence.Menu.MenuDivider(RogueElements.Loc(8, summary.Bounds.Height - 24), summary.Bounds.Width - 8 * 2))
@@ -473,7 +473,7 @@ function DungeonJobList:GenerateEntries()
             else
                 local team_to_save = STRINGS:Format("[color=#FFA5FF]{0}[color]", _DATA.Save.Rescue.SOS.TeamName)
                 local message = STRINGS:FormatKey(self.library.globals.keys.RESCUE_SELF, team_to_save)
-                floor = STRINGS:Format(floor_pattern, _DATA.Save.Rescue.SOS.Goal.StructID.ID+1)
+                local floor = STRINGS:Format(floor_pattern, _DATA.Save.Rescue.SOS.Goal.StructID.ID+1)
                 table.insert(list, {icon = STRINGS:Format("\\uE10F"), floor = floor, message = message})
             end
         else

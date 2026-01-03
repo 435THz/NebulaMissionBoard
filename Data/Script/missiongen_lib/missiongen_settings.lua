@@ -212,7 +212,7 @@ local settings = {
     --- This list is automatically populated in call order when using the "AddDungeonSection" function near the bottom of this file.
     ---@type table<string, integer>
     dungeon_order = {},
-    --- A list of events unrelated to this library that can cause job generation to ignore a specific dungeon.
+    --- A list of events unrelated to this library that can cause job generation to ignore a specific dungeon.\
     --- They can also be displayed in the objectives log if you so choose.
     --- Format: {condition = function, message_key = string, message_args = function, icon = string}
     --- * condition: a function that takes a zone and returns a boolean. If it returns true,
@@ -2164,22 +2164,23 @@ local settings = {
     --- The object that contains job callback functions. It is recommended to define this object somewhere else.
     --- Job callbacks are stored inside jobs as strings. These strings are then used as an index in the callback root object to retrieve the
     --- actual function. They will be passed two parameters, the first one being a table structured like so:
-    --- {cancel: boolean, job: jobTable}
+    --- {cancel: boolean, job: jobTable, data: table<string, any>?}
     --- * cancel: set this to true to stop the event for whatever reason. For example, canceling BeforeReward will stop a job from performing the normal reward cutscene.
-    --- * job: the job that requested this callback.
+    --- * job: the job that requested this callback. Any changes made here will alter the job directly.
+    --- * data: a list of extra parameters that depend on the specific event and its context. It can be nil.
     ---
     --- The second parameter is the list of arguments defined during the callback registration.
     ---
-    --- List of events:
-    --- * JobTake: Ran right before the job is taken from a board or otherwise obtained using ```library:TakeJob```. The job provided is the copy that would be added to the taken list.
+    --- List of events and their ```data``` parameters (nil if omitted):
+    --- * JobTake: Ran right before the job is taken from a board or otherwise obtained using ```library:TakeJob```. The job provided in the first argument's table is the copy that would be added to the taken list. ```data = {board: string}```
     --- * JobActivate: Ran right before the job is activated from the taken list menu or by calling ```library:ToggleTakenJob``` on an inactive job. Does NOT run when taken from a board while "taken_jobs_start_active" is true.
     --- * JobDeactivate: Ran right before the job is deactivated from the taken list menu or by calling ```library:ToggleTakenJob``` on an active job.
     --- * DungeonStart: Ran when entering the dungeon this job is located in. Canceling this event does nothing.
-    --- * FloorStart: Ran at the start of the target floor of the job.
-    --- * JobComplete: Ran when the job is marked as completed during an exploration or otherwised marked as such using ```library:MarkJobCompleted```.
-    --- * JobFail: Ran when the job is marked as failed during an exploration or otherwised marked as such using ```library:MarkJobFailed```.
-    --- * BeforeReward: Ran before this specific job's reward cutscene is started. Canceling this skips the entire reward routine and go straight to deleting the job from the taken list.
-    --- * AfterReward: Ran after this specific job's reward cutscene is started. Canceling this event will prevent the job from being removed from the taken list.
+    --- * FloorStart: Ran at the start of the target floor of the job. Canceling this event will skip the entire event setup routine for this job. ```data = {zoneContext = RogueEssence.LevelGen.ZoneGenContext, context = RogueElements.IGenContext, queue = RogueElements.StablePriorityQueue<RogueElements.Priority, RogueElements.IGenStep>, seed: System.UInt64}```
+    --- * JobComplete: Ran right before the job is marked as completed during an exploration or otherwised marked as such using ```library:MarkJobCompleted```.
+    --- * JobFail: Ran right before the job is marked as failed during an exploration or otherwised marked as such using ```library:MarkJobFailed```.
+    --- * BeforeReward: Ran before this specific job's reward cutscene is started. Canceling this will skip the entire reward routine and go straight to deleting the job from the taken list. ```data = {zone: string, map: number}```
+    --- * AfterReward: Ran after this specific job's reward cutscene is completed. Canceling this event will prevent the job from being removed from the taken list. ```data = {zone: string, map: number}```
     mission_callback_root = COMMON
 }
 settings.target_items.OUTLAW_ITEM_UNK = settings.target_items.OUTLAW_ITEM --copy list because it should be the same anyway
