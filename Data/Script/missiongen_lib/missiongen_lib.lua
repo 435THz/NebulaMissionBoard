@@ -916,7 +916,7 @@ local filterMoveset = function(chara, tm_allowed, tutor_allowed, egg_allowed, bl
                             if #subtables>0 then
                                 moveset_table.all[skill] = {cat = subtables, tables = {supertable}, value = value}
                             end
-                        else
+                        elseif moveset_table.all[skill] then
                             for _, subtable in ipairs(moveset_table.all[skill].cat) do
                                 table.insert(moveset_table[supertable][subtable], moveset_table.all[skill].value)
                             end
