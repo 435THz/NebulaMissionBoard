@@ -2264,6 +2264,8 @@ settings.AddDungeonSection("ambush_forest", 0, 16, "A")
 settings.AddDungeonSection("sickly_hollow", 0, 9, "S", 16, false, function() return weightLerp(6, 10, 25, 35) end)
 settings.AddDungeonSection("sickly_hollow", 0, 13, "STAR_1")
 
+settings.AddDungeonSection("tiny_tunnel", 0, 5, "B", 8, true, 8)
+
 settings.AddDungeonSection("secret_garden", 0, 15, "STAR_3", 40, false, function() return weightLerp(5, 13, 5, 60) end)
 settings.AddDungeonSection("secret_garden", 0, 20, "STAR_4")
 settings.AddDungeonSection("secret_garden", 0, 25, "STAR_5")
@@ -2278,6 +2280,9 @@ settings.AddDungeonSection("wayward_wetlands", 0, 12, "S")
 
 settings.AddDungeonSection("fertile_valley", 0, 5, "D", 8, true, 6)
 settings.AddDungeonSection("fertile_valley", 1, 1, "C", 5)
+
+settings.AddDungeonSection("geode_crevice", 0, 6, "A", 8, true, 9)
+settings.AddDungeonSection("geode_crevice", 0, 10, "S")
 
 settings.AddDungeonSection("copper_quarry", 0, 7, "C", 11, true, 7)
 settings.AddDungeonSection("copper_quarry", 0, 1, "B", 4)
