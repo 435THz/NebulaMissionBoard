@@ -1,4 +1,4 @@
--- PMDO Mission Generation Library v1.0.3, by MistressNebula
+-- PMDO Mission Generation Library v1.0.5, by MistressNebula
 -- Debug file
 -- ----------------------------------------------------------------------------------------- --
 -- This file is a big debug function used by the library only when loading during dev mode.
