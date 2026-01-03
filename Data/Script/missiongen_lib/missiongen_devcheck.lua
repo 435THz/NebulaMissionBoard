@@ -169,7 +169,16 @@ function checker.check(library)
                 if type(zone_data) == "table" then
                     local zone = _DATA:GetZone(id)
                     for index, segment_data in pairs(zone_data) do
-                        if index >= 0 and index < zone.Segments.Count then
+                        if type(index) == "string" then
+                            local weight = segment_data
+                            if index == "weight" then
+                                if not EqualToAny(type(weight), { "number", "function", "nil" }) then
+                                    LogError("\"dungeons[" ..
+                                    tostring(id) ..
+                                    "].weight\" is not number, function or nil. This will cause the library to fail.")
+                                end
+                            end
+                        elseif index >= 0 and index < zone.Segments.Count then
                             if type(segment_data) == "table" then
                                 if not type(segment_data.max_floor) == "number" then
                                     LogError("\"dungeons[" ..

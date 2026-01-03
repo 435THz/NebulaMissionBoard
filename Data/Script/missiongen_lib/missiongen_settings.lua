@@ -206,7 +206,7 @@ local settings = {
     outlaw_music_name = "Outlaw.ogg",
     --- This is where dungeon difficulty is set. Quests can only generate for dungeons inside this list.
     --- Given the complexity of this structure, it is best generated using the "AddDungeonSection" function near the bottom of this file.
-    ---@type table<string, table<integer, {max_floor:integer, must_end:boolean, sections:{start:integer, difficulty:string}[]}>>
+    ---@type table<string, {weight:integer|(fun(library:table, board_id:string):integer), [integer]: {max_floor:integer, must_end:boolean, sections:{start:integer, difficulty:string}[]}}>
     dungeons = {},
     --- Jobs are sorted by dungeon, following this order. Missing dungeons are shoved at the bottom and sorted alphabetically.
     --- This list is automatically populated in call order when using the "AddDungeonSection" function near the bottom of this file.
@@ -2192,7 +2192,8 @@ settings.target_items.OUTLAW_ITEM_UNK = settings.target_items.OUTLAW_ITEM --copy
 --- @param difficulty string the string id of the difficulty assigned to this section.
 --- @param finish? integer Only considered when first adding a segment to the list.Can be omitted otherwise.  This will be the last floor of the segment where jobs can spawn (start counting from 1 for this). If higher than the dungeon floors, it will default to the full dungeon length.
 --- @param must_end? boolean Only considered when first adding a segment to the list. Can be omitted otherwise. If true, this segment must be completed before jobs can spawn in it. If false, the segment must be accessed at least once, unless it's segment 0, which just needs to be unlocked. Defaults to true.
-function settings.AddDungeonSection(zone, segment, start, difficulty, finish, must_end)
+--- @param weight? integer|fun(library:table, board_id:string):integer Only considered when first adding a dungeon to the list. Can be omitted otherwise. This is the weight that the dungeon will have when rolling for job destinations. If set to a function, it takes the library and current board id as arguments and must return an integer. If not set, defaults to 1.
+function settings.AddDungeonSection(zone, segment, start, difficulty, finish, must_end, weight)
     if must_end == nil then must_end = true end
     if settings.dungeons[zone] == nil then
         if not settings.dungeon_order._count then
@@ -2202,85 +2203,107 @@ function settings.AddDungeonSection(zone, segment, start, difficulty, finish, mu
         settings.dungeon_order._count = settings.dungeon_order._count +1
         settings.dungeon_order[zone] = settings.dungeon_order._count
     end
-    settings.dungeons[zone] = settings.dungeons[zone] or {}
+    settings.dungeons[zone] = settings.dungeons[zone] or {weight = weight or 1}
     settings.dungeons[zone][segment] = settings.dungeons[zone][segment] or {max_floor = finish, must_end = must_end, sections = {}}
     table.insert(settings.dungeons[zone][segment].sections, {start = start, difficulty = difficulty})
 end
 
-settings.AddDungeonSection("tropical_path", 0, 3, "F", 4)
-settings.AddDungeonSection("faultline_ridge", 0, 6, "D", 10)
 
-settings.AddDungeonSection("guildmaster_trail", 0, 15, "STAR_2", 30, false)
+
+
+
+
+--- this function has been created specifically for PMDO's base game. You can keep it or get rid of it, it doesn't really matter.
+--- It interpolates linearly from its first argument to its second argument, with the third argument as the lowest level considered and
+--- the fourth as the level required to reach the maximum value. The interpolation parameter used is the level of the highest level
+--- character in the current team.
+local weightLerp = function(start, _end, lowerCap, higherCap)
+    higherCap=higherCap or 100
+    local party_hst, party_count = 0, _DATA.Save.ActiveTeam.Players.Count
+    for i = 0, party_count - 1, 1 do
+        local char_lvl = _DATA.Save.ActiveTeam.Players[i].Level
+        party_hst = math.max(char_lvl, party_hst)
+        if party_hst>=higherCap then return _end end
+    end
+    if party_hst<lowerCap then return start end
+    return math.floor((_end-start)*((party_hst-lowerCap)/(higherCap-lowerCap)))+start
+end
+
+settings.AddDungeonSection("tropical_path", 0, 3, "F", 4, true, 4)
+settings.AddDungeonSection("faultline_ridge", 0, 6, "D", 10, true, 6)
+
+settings.AddDungeonSection("guildmaster_trail", 0, 15, "STAR_2", 30, false, function() return weightLerp(4, 11, 5, 50) end)
 settings.AddDungeonSection("guildmaster_trail", 0, 19, "STAR_3")
 settings.AddDungeonSection("guildmaster_trail", 0, 23, "STAR_4")
 settings.AddDungeonSection("guildmaster_trail", 0, 27, "STAR_5")
 
-settings.AddDungeonSection("lava_floe_island", 0, 9, "C", 16)
+settings.AddDungeonSection("lava_floe_island", 0, 9, "C", 16, true, 7)
 settings.AddDungeonSection("lava_floe_island", 1, 1, "STAR_1", 9)
 
-settings.AddDungeonSection("castaway_cave", 0, 7, "B", 12)
+settings.AddDungeonSection("castaway_cave", 0, 7, "B", 12, true, 8)
 
-settings.AddDungeonSection("faded_trail", 0, 4, "E", 7)
+settings.AddDungeonSection("faded_trail", 0, 4, "E", 7, true, 5)
 settings.AddDungeonSection("faded_trail", 1, 1, "D", 3)
 
-settings.AddDungeonSection("bramble_woods", 0, 4, "E", 7)
+settings.AddDungeonSection("bramble_woods", 0, 4, "E", 7, true, 5)
 settings.AddDungeonSection("bramble_woods", 1, 1, "D", 3)
 
-settings.AddDungeonSection("trickster_woods", 0, 6, "C", 10)
+settings.AddDungeonSection("trickster_woods", 0, 6, "C", 10, true, 7)
 settings.AddDungeonSection("trickster_woods", 1, 1, "B", 4)
 
-settings.AddDungeonSection("overgrown_wilds", 0, 7, "C", 12)
+settings.AddDungeonSection("overgrown_wilds", 0, 7, "C", 12, true, 7)
 settings.AddDungeonSection("overgrown_wilds", 1, 1, "B", 4)
 
-settings.AddDungeonSection("moonlit_courtyard", 0, 8, "C", 14)
+settings.AddDungeonSection("moonlit_courtyard", 0, 8, "C", 14, true, 8)
 settings.AddDungeonSection("moonlit_courtyard", 0, 12, "B")
 settings.AddDungeonSection("moonlit_courtyard", 1, 1, "A", 6)
 
-settings.AddDungeonSection("ambush_forest", 0, 11, "B", 20)
+settings.AddDungeonSection("ambush_forest", 0, 11, "B", 20, true, 9)
 settings.AddDungeonSection("ambush_forest", 0, 16, "A")
 
-settings.AddDungeonSection("sickly_hollow", 0, 9, "S", 16, false)
+settings.AddDungeonSection("sickly_hollow", 0, 9, "S", 16, false, function() return weightLerp(6, 10, 25, 35) end)
 settings.AddDungeonSection("sickly_hollow", 0, 13, "STAR_1")
 
-settings.AddDungeonSection("secret_garden", 0, 15, "STAR_3", 40, false)
+settings.AddDungeonSection("secret_garden", 0, 15, "STAR_3", 40, false, function() return weightLerp(5, 13, 5, 60) end)
 settings.AddDungeonSection("secret_garden", 0, 20, "STAR_4")
 settings.AddDungeonSection("secret_garden", 0, 25, "STAR_5")
 settings.AddDungeonSection("secret_garden", 0, 30, "STAR_6")
 settings.AddDungeonSection("secret_garden", 0, 34, "STAR_7")
 settings.AddDungeonSection("secret_garden", 0, 38, "STAR_8")
 
-settings.AddDungeonSection("flyaway_cliffs", 0, 6, "C", 10)
+settings.AddDungeonSection("flyaway_cliffs", 0, 6, "C", 10, true, 7)
 
-settings.AddDungeonSection("wayward_wetlands", 0, 8, "A", 16)
+settings.AddDungeonSection("wayward_wetlands", 0, 8, "A", 16, true, 9)
 settings.AddDungeonSection("wayward_wetlands", 0, 12, "S")
 
-settings.AddDungeonSection("fertile_valley", 0, 5, "D", 8)
+settings.AddDungeonSection("fertile_valley", 0, 5, "D", 8, true, 6)
 settings.AddDungeonSection("fertile_valley", 1, 1, "C", 5)
 
-settings.AddDungeonSection("copper_quarry", 0, 7, "C", 11)
+settings.AddDungeonSection("copper_quarry", 0, 7, "C", 11, true, 7)
 settings.AddDungeonSection("copper_quarry", 0, 1, "B", 4)
 
-settings.AddDungeonSection("depleted_basin", 0, 5, "C", 9)
-settings.AddDungeonSection("forsaken_desert", 0, 2, "S", 4)
+settings.AddDungeonSection("depleted_basin", 0, 5, "C", 9, true, 7)
 
-settings.AddDungeonSection("relic_tower", 0, 8, "S", 13)
+settings.AddDungeonSection("forsaken_desert", 0, 2, "S", 4, true, 9)
+
+settings.AddDungeonSection("relic_tower", 0, 8, "S", 13, true, 10)
 settings.AddDungeonSection("relic_tower", 0, 11, "STAR_1")
 
-settings.AddDungeonSection("sleeping_caldera", 0, 10, "B", 18)
+settings.AddDungeonSection("sleeping_caldera", 0, 10, "B", 18, true, 8)
 settings.AddDungeonSection("sleeping_caldera", 0, 15, "A")
 
-settings.AddDungeonSection("thunderstruck_pass", 0, 8, "B", 14)
+settings.AddDungeonSection("thunderstruck_pass", 0, 8, "B", 14, true, 8)
 
-settings.AddDungeonSection("veiled_ridge", 0, 9, "B", 16)
+settings.AddDungeonSection("veiled_ridge", 0, 9, "B", 16, true, 8)
 settings.AddDungeonSection("veiled_ridge", 1, 1, "A", 6)
 
-settings.AddDungeonSection("snowbound_path", 0, 10, "B", 18)
+settings.AddDungeonSection("snowbound_path", 0, 10, "B", 18, true, 8)
 settings.AddDungeonSection("snowbound_path", 1, 1, "A", 6)
 
-settings.AddDungeonSection("treacherous_mountain", 0, 11, "A", 20)
+settings.AddDungeonSection("treacherous_mountain", 0, 11, "A", 20, true, 9)
 settings.AddDungeonSection("treacherous_mountain", 0, 16, "S")
 
-settings.AddDungeonSection("champions_road", 0, 13, "S", 23)
+settings.AddDungeonSection("champions_road", 0, 13, "S", 23, true, 10)
 settings.AddDungeonSection("champions_road", 0, 19, "STAR_1")
 
 return settings

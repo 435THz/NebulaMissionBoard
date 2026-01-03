@@ -18,7 +18,7 @@
 --- @alias monsterIDTable {Species:string, Form:integer|nil, Skin:string|nil, Gender:integer|nil, Nickname:string|nil} A table that can be converted into a MonsterID object
 --- @alias eventTable {cancel:boolean, job:jobTable, data:table<string, any>} A table used to handle job events
 --- @alias MonsterID {Species:string, Form:integer, Skin:string, Gender:userdata} A MonsterID object
---- @alias destTable {destinations:string[], occupied:table<string,table<integer,table<integer, boolean>>>, allowed:{segment:integer, floor:integer, difficulty:string}[]} table used for randomly selecting destinations for jobs.
+--- @alias destTable {destinations:{zone:string, weight:integer}[], occupied:table<string,table<integer,table<integer, boolean>>>, allowed:{segment:integer, floor:integer, difficulty:string}[]} table used for randomly selecting destinations for jobs.
 
 -- Types used for moveset generation
 --- @alias categoryType "level"|"tm"|"tutor"|"egg" types of move pools
@@ -1780,6 +1780,42 @@ end
 -- ----------------------------------------------------------------------------------------- --
 -- Functions for randomization purposes
 
+
+--- Returns a randomly chosen element of the given list.
+--- Elements must have a "weight" property, otherwise their weight will default to 1.
+--- If the "weight" property is a function, args will be supplied to it so that it can calculate a value dynamically.
+--- @generic T:table
+--- @param list T[] the list of elements to roll.
+--- @param replay_sensitive? boolean if true, this function will use a replay-safe rng function. Defaults to false.
+--- @return T|nil, number|nil #the element extracted and its index in the list, or nil, nil if the list was empty
+function library:WeightedRandomDynamic(list, replay_sensitive, args)
+    ---@type {index:integer, weight:integer}[]
+    local tbl = {}
+    local weight = 0
+    for i, entry in ipairs(list) do
+        local e = {index = i, weight = entry.weight or entry.Weight or 1}
+        if type(e.weight) == "function" then
+            e.weight = e.weight(table.unpack(args))
+        end
+        table.insert(tbl, e)
+        weight = weight + e.weight
+    end
+    
+    if weight <= 0 then return end
+    local roll = -1
+    if replay_sensitive
+    then roll = _DATA.Save.Rand:Next(weight)+1 --this rng getter includes 0 but doesn't include the max value so +1 it is
+    else roll = math.random(1, weight)
+    end
+
+    weight = 0
+    for _, element in ipairs(tbl) do
+        weight = weight + element.weight
+        if weight >= roll then return list[element.index], element.index end
+    end
+    return list[#list], #list -- should never hit, but just in case, return last
+end
+
 --- Returns a randomly chosen element of the given list.
 --- Elements must have a "weight" property, otherwise their weight will default to 1.
 --- @generic T:table
@@ -1825,8 +1861,9 @@ function library:WeightedRandomExclude(list, exclude, replay_sensitive, alt_id)
         local match = element
         if id ~= "" then match = element[id] end
         if not exclude[match] then
-            if element.weight
-            then weight = weight + element.weight
+            local elem_weight = element.weight or element.Weight
+            if elem_weight
+            then weight = weight + elem_weight
             else weight = weight + 1
             end
             if weight >= roll then return element, i end
@@ -1992,7 +2029,7 @@ end
 
 --- Compiles a list of valid destinations in the form of zone ids. This is more of an approximation than a perfect list, as it does not
 --- take into account occupied and invalid floors.
---- @return string[] #a list of zone ids.
+--- @return {zone:string,weight:integer|fun(library:table, board_id:string):integer}[] #a list of zone ids and their associated weight or weight function.
 function library:GetValidZones()
     local zones = {}
     for zone, zone_data in pairs(self.data.dungeons) do
@@ -2000,7 +2037,7 @@ function library:GetValidZones()
             for segment, segment_data in pairs(zone_data) do
                 if self.root.dungeon_progress[zone][segment] ~= nil and
                     (self.root.dungeon_progress[zone][segment] or not segment_data.must_end) then
-                    table.insert(zones, zone)
+                    table.insert(zones, {zone = zone, weight = zone_data.weight})
                     break
                 end
             end
@@ -2081,7 +2118,7 @@ end
 
 --- Initializes a destination table by calling ``library:GetValidZones`` and ``library.GetFloorsOccupied``,
 --- but leaves the "allowed" table empty for more efficient use later on.
---- @return destTable the table that will be used for destination selection.
+--- @return destTable #the table that will be used for destination selection.
 function library:CompileDestinationData()
     return {
         destinations = self:GetValidZones(),
@@ -2090,27 +2127,33 @@ function library:CompileDestinationData()
     }
 end
 
---- Given a destination data list and a list of zone ids, it returns the intersection between the valid zones and the requested ones.
---- If the zone id list is nil, it returns the list of valid zone indices, without filtering.
+--- Given a destination data list and a list of zone ids, it returns the intersection between the valid zones and the whitelisted ones.
+--- If the whitelist is nil, it returns the list of valid zone indices, without filtering.
 ---@param dest_data destTable List of possible destination zones.
----@param zones string[]|table<string, boolean>|nil List or set of zone ids to filter
----@return {zone:string, index:integer}[] the list of filtered zones, paired with their original dest_data index
-function library:FilterDestinationData(dest_data, zones)
+---@param whitelist string[]|table<string, boolean>|nil List or set of zone ids to filter
+---@return {zone:string, index:integer, weight:integer|fun(library:table, board_id:string):integer}[] #the list of filtered zones, paired with their original dest_data index and their weight or weight function
+function library:FilterDestinationData(dest_data, whitelist)
     if not dest_data then return {} end
-    if zones == nil then zones = dest_data.destinations end
+    if whitelist == nil then
+        --initialize already as a set if nil to save time later
+        whitelist = {}
+        for _, zone_entry in ipairs(dest_data.destinations) do
+            whitelist[zone_entry.zone] = true
+        end
+    end
     ---@type table<string, boolean>
     local indexer = {}
-    if zones[1] == nil then -- assume it's already a set if integer indexing doesn't work
-        --- @cast zones table<string, boolean>
-        indexer = zones
+    if whitelist[1] == nil then -- assume it's already a set if integer indexing doesn't work
+        ---@cast whitelist table<string, boolean>
+        indexer = whitelist
     else
-        --- @cast zones string[]
-        for _, zone in ipairs(zones) do indexer[zone] = true end
+        ---@cast whitelist string[]
+        for _, zone in ipairs(whitelist) do indexer[zone] = true end
     end
     local filtered = {}
-    for i, zone_id in ipairs(dest_data.destinations) do
-        if indexer[zone_id] then
-            table.insert(filtered, {zone = zone_id, index = i})
+    for i, zone_entry in ipairs(dest_data.destinations) do
+        if indexer[zone_entry.zone] then
+            table.insert(filtered, {zone = zone_entry.zone, index = i, weight = zone_entry.weight})
         end
     end
     return filtered
@@ -2158,8 +2201,8 @@ function library:PopulateBoard(board_id, dest_data)
 
         -- choose destination
         if #filtered_destinations <= 0 then break end
-        local zone_struct, struct_index = self:WeightlessRandom(filtered_destinations)
-        ---@cast zone_struct {zone:string, index:integer} because we already checked there is at least 1 possible result
+        local zone_struct, struct_index = self:WeightedRandomDynamic(filtered_destinations, false, {self, board_id})
+        ---@cast zone_struct -? because we already checked there is at least 1 possible result
         local zone = zone_struct.zone
 
         if not dest_data.allowed[zone] then dest_data.allowed[zone] = self:GetValidDestinationsInZone(zone, dest_data.occupied) end
