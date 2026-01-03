@@ -16,6 +16,14 @@ function base_camp_2_bulletin.Enter(map)
         MissionGen:PlayJobsCompletedCutscene(base_camp_2_bulletin.Hand_In_Missions)
     end
 
+    local species = "murkrow"
+    local nickname = _DATA.DataIndices[RogueEssence.Data.DataManager.DataType.Monster]:Get(species).Name:ToLocal()
+    local name = "NPC_Reroll"
+    local temp_monster = RogueEssence.Dungeon.MonsterID(species, 0, "normal", Gender.Genderless)
+    local npc = RogueEssence.Ground.GroundChar(temp_monster, RogueElements.Loc(80, 528), Direction.DownLeft, nickname, name)
+    npc:ReloadEvents()
+    GAME:GetCurrentGround():AddMapChar(npc)
+
     base_enter(map)
 end
 
@@ -52,6 +60,73 @@ function base_camp_2_bulletin.Mission_Board_Action(obj, activator)
 
     GROUND:CharEndAnim(hero)
 end
+
+function base_camp_2_bulletin.NPC_Reroll_Action(obj, activator)
+    local char = CH("NPC_Reroll")
+    local anyTaken = false
+    local added_price = 0
+    for _, job in ipairs(MissionGen.root.boards["quest_board"]) do
+        local diff_mult = job.Difficulty
+        if job.Difficulty > 7 then diff_mult = diff_mult + job.Difficulty - 7 end
+        added_price = added_price + 50*diff_mult
+        if job.Taken then
+            anyTaken = true
+            break
+        end
+    end
+
+    UI:SetSpeaker(char)
+    if SV.jobs.rerolls == nil then
+        UI:WaitShowDialogue(STRINGS:Format(STRINGS.MapStrings['Mission_Board_Reroll_1']))
+    end
+
+    if not anyTaken then
+        if SV.jobs.rerolls == nil then
+            UI:ChoiceMenuYesNo(STRINGS:Format(STRINGS.MapStrings['Mission_Board_Reroll_2']), false)
+            SV.jobs.rerolls = 0
+        else
+            UI:ChoiceMenuYesNo(STRINGS:Format(STRINGS.MapStrings['Mission_Board_Reroll_2a']), false)
+        end
+        UI:WaitForChoice()
+        if UI:ChoiceResult() then
+            local rerolls = SV.jobs.rerolls or 0
+            local base = 500+500*(2^rerolls)
+            local cost = base + added_price
+            UI:ChoiceMenuYesNo(STRINGS:Format(STRINGS.MapStrings['Mission_Board_Reroll_Accept'], STRINGS:FormatKey("MONEY_AMOUNT", cost)), true)
+            UI:WaitForChoice()
+            if UI:ChoiceResult() then
+                if GAME:GetPlayerMoney() >= cost then
+                    SV.jobs.rerolls = rerolls + 1
+	                SOUND:PlayBattleSE("DUN_Money")
+                    MissionGen:UpdateBoards()
+                    GAME:RemoveFromPlayerMoney(cost)
+                    UI:WaitShowDialogue(STRINGS:Format(STRINGS.MapStrings['Mission_Board_Reroll_Confirm_1']))
+                    GAME:FadeOut(false, 40)
+                    GAME:WaitFrames(40)
+                    GAME:FadeIn(40)
+                    UI:WaitShowDialogue(STRINGS:Format(STRINGS.MapStrings['Mission_Board_Reroll_Confirm_2']))
+                else
+                    UI:WaitShowDialogue(STRINGS:Format(STRINGS.MapStrings['Mission_Board_Reroll_NoMoney']))
+                end
+            else
+                UI:WaitShowDialogue(STRINGS:Format(STRINGS.MapStrings['Mission_Board_Reroll_Refuse']))
+            end
+        else
+            UI:WaitShowDialogue(STRINGS:Format(STRINGS.MapStrings['Mission_Board_Reroll_Refuse']))
+        end
+    else
+        if SV.jobs.rerolls == nil then
+            UI:WaitShowDialogue(STRINGS:Format(STRINGS.MapStrings['Mission_Board_Reroll_2']))
+            SV.jobs.rerolls = 0
+        else
+            UI:WaitShowDialogue(STRINGS:Format(STRINGS.MapStrings['Mission_Board_Reroll_2a']))
+        end
+        UI:WaitShowDialogue(STRINGS:Format(STRINGS.MapStrings['Mission_Board_Reroll_Cannot_1']))
+        UI:WaitShowDialogue(STRINGS:Format(STRINGS.MapStrings['Mission_Board_Reroll_Cannot_2']))
+    end
+end
+
+-------------------------------------------------------------------------------------------------------------
 
 function base_camp_2_bulletin.Hand_In_Missions(job, npcs)
     ---@cast job jobTable

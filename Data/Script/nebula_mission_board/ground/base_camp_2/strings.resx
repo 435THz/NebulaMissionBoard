@@ -171,4 +171,34 @@
   <data name="Mission_Response_Child" xml:space="preserve">
     <value>Thank you so much for saving my child!</value>
   </data>
+  <data name="Mission_Board_Reroll_1" xml:space="preserve">
+    <value>You look unsatisfied, explorer.[pause=1] I know,[pause=10] sometimes the jobs on the board aren't the best.</value>
+  </data>
+  <data name="Mission_Board_Reroll_2" xml:space="preserve">
+    <value>But, hey, heheh...[pause=10] I may know a way to sneak into the Post Office.[pause=10] I could change them for you...</value>
+  </data>
+  <data name="Mission_Board_Reroll_2a" xml:space="preserve">
+    <value>Back again, explorer?[pause=10] Interested in changing the contents of the board?</value>
+  </data>
+  <data name="Mission_Board_Reroll_Accept" xml:space="preserve">
+    <value>Nice, nice![pause=10] I just need {0} in return.[pause=10] You in?</value>
+  </data>
+  <data name="Mission_Board_Reroll_Confirm_1" xml:space="preserve">
+    <value>Perfect![pause=10] Just wait for me here, eh?</value>
+  </data>
+  <data name="Mission_Board_Reroll_Confirm_2" xml:space="preserve">
+    <value>And...[pause=10] done![pause=10] Let me know if you're still unsatisfied!</value>
+  </data>
+  <data name="Mission_Board_Reroll_NoMoney" xml:space="preserve">
+    <value>No,[pause=5] no,[pause=5] that's not enough![pause=10] Come back when you have enough \uE024!</value>
+  </data>
+  <data name="Mission_Board_Reroll_Refuse" xml:space="preserve">
+    <value>Disappointing.[pause=10] Let me know if you change your mind.</value>
+  </data>
+  <data name="Mission_Board_Reroll_Cannot_1" xml:space="preserve">
+    <value>Oh, it looks like you have already taken some...[pause=10] I can't return only a part of them, you know?[pause=10] They might notice something's off...</value>
+  </data>
+  <data name="Mission_Board_Reroll_Cannot_2" xml:space="preserve">
+    <value>Put them back and we can talk business for real.</value>
+  </data>
 </root>

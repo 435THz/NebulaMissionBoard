@@ -15,6 +15,8 @@ end
 
 ---Overrides origin function.
 function COMMON.ExitDungeonMissionCheckEx(result, rescue, zoneId, segmentID)
+    --specifically added for PMDO's base game. Resets the quest board reroll price to minimum at each day end. 
+    if SV.jobs.rerolls then SV.jobs.rerolls=0 end
     --remove all guests from the dungeon
     return MissionGen:ExitDungeonMissionCheckEx(result, rescue, zoneId, segmentID)
 end
