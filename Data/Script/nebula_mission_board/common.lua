@@ -47,9 +47,6 @@ function COMMON.ShowDestinationMenu(dungeon_entrances, ground_entrances, force_l
 
     local dest = RogueEssence.Dungeon.ZoneLoc.Invalid
     if #open_dests > 1 or force_list then
-        if before_list ~= nil then
-            before_list(dest)
-        end
 
         SOUND:PlaySE("Menu/Skip")
         local default_choice = 1
