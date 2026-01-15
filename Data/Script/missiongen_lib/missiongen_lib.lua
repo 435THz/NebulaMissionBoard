@@ -3752,7 +3752,7 @@ function library:GenerateJobInFloor(zoneContext, context, queue, seed, _)
                 activeEffect.OnTurnEnds:Add(priority_gen,
                     RogueEssence.Dungeon.SingleCharScriptEvent("OutlawCheck", '{ JobReference = ' .. jobIndex .. ' }'))
             elseif job.Type == "OUTLAW_FLEE" then
-                activeEffect.OnMapTurnEnds:Add(priority_gen,
+                activeEffect.OnTurnEnds:Add(priority_gen,
                     RogueEssence.Dungeon.SingleCharScriptEvent("OutlawFleeStairsCheck",
                         '{ JobReference = ' .. jobIndex .. ' }'))
                 activeEffect.OnTurnEnds:Add(priority_gen,
@@ -4172,21 +4172,21 @@ end
 --- If it has, the outlaw music will stop, the outlaw will disappear, and the job will be marked as failed.
 --- Please pass all of the event's parameters to this function, in order.
 function library:OutlawFleeStairsCheck(_, _, _, args)
-    local stairs_arr = {
-        "stairs_back_down", "stairs_back_up", "stairs_exit_down",
-        "stairs_exit_up", "stairs_go_up", "stairs_go_down"
+    local stairs_set = {
+        stairs_back_down = true, stairs_back_up = true, stairs_exit_down = true,
+        stairs_exit_up = true,   stairs_go_up = true,   stairs_go_down = true
     }
-    local stairs_set = {}
-    for _, id in ipairs(stairs_arr) do stairs_set[id] = true end
 
     local jobIndex = args.JobReference
     local job = self.root.taken[jobIndex]
 
     local outlaw
-    for char in luanet.each(LUA_ENGINE:MakeList(_ZONE.CurrentMap:IterateCharacters(false, true))) do
-        if char.LuaData and char.LuaData.OutlawReference == jobIndex then
-            outlaw = char
-            break
+    if job.Completion~=globals.completion.Failed then
+        for char in luanet.each(LUA_ENGINE:MakeList(_ZONE.CurrentMap:IterateCharacters(false, true))) do
+            if char.LuaData and char.LuaData.OutlawReference == jobIndex then
+                outlaw = char
+                break
+            end
         end
     end
 
