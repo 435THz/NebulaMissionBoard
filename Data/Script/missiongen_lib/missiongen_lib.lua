@@ -3301,6 +3301,12 @@ function library:ExitDungeonMissionCheckEx(result, _, zone, segment)
         for _, job in ipairs(self.root.taken) do
             job.Completion = globals.completion.NotCompleted
         end
+    else --reset all failed job completion data if the exploration succeeded
+        for _, job in ipairs(self.root.taken) do
+            if job.Completion == globals.completion.Failed then
+                job.Completion = globals.completion.NotCompleted
+            end
+        end
     end
 
     for _, job in ipairs(self.root.taken) do
