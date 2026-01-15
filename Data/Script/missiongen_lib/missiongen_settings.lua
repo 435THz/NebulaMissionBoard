@@ -2193,7 +2193,7 @@ settings.target_items.OUTLAW_ITEM_UNK = settings.target_items.OUTLAW_ITEM --copy
 --- @param difficulty string the string id of the difficulty assigned to this section.
 --- @param finish? integer Only considered when first adding a segment to the list.Can be omitted otherwise.  This will be the last floor of the segment where jobs can spawn (start counting from 1 for this). If higher than the dungeon floors, it will default to the full dungeon length.
 --- @param must_end? boolean Only considered when first adding a segment to the list. Can be omitted otherwise. If true, this segment must be completed before jobs can spawn in it. If false, the segment must be accessed at least once, unless it's segment 0, which just needs to be unlocked. Defaults to true.
---- @param weight? integer|fun(library:table, board_id:string):integer Only considered when first adding a dungeon to the list. Can be omitted otherwise. This is the weight that the dungeon will have when rolling for job destinations. If set to a function, it takes the library and current board id as arguments and must return an integer. If not set, defaults to 1.
+--- @param weight? integer|fun(library:table, board_id:string):integer Only considered when first adding a zone to the list. Can be omitted otherwise. This is the weight that the dungeon will have when rolling for job destinations. If set to a function, it takes the library and current board id as arguments and must return an integer. If not set, defaults to 1.
 function settings.AddDungeonSection(zone, segment, start, difficulty, finish, must_end, weight)
     if must_end == nil then must_end = true end
     if settings.dungeons[zone] == nil then
